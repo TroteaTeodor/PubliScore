@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}AreaGrade - Home{% endblock %}
+
+{% block content %}
+<header class="text-center my-5">
+    <h1 class="display-4">Welcome to AreaGrade</h1>
+    <p class="lead">Find the best area to rent in Antwerp based on public transport accessibility</p>
+</header>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-lg">
+            <div class="card-body">
+                <h2 class="card-title text-center mb-4 text-info">Enter an Address</h2>
+                
+                <form action="/search" method="POST" id="addressForm">
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address in Antwerp</label>
+                        <input type="text" class="form-control form-control-lg bg-dark text-light border-secondary" id="address" name="address" 
+                               placeholder="e.g. Meir 1, Antwerp" required>
+                        <div class="form-text text-muted">Enter a complete address for the most accurate results</div>
+                    </div>
+                    
+                    <!-- Hidden fields for geolocation -->
+                    <input type="hidden" id="latitude" name="latitude">
+                    <input type="hidden" id="longitude" name="longitude">
+                    <input type="hidden" id="useGeolocation" name="useGeolocation" value="false">
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg mb-2">Grade This Area</button>
+                        <button type="button" id="geolocateBtn" class="btn btn-outline-info btn-lg">
+                            <i class="bi bi-geo-alt-fill"></i> Use My Current Location
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Geolocation status alert - hidden by default -->
+                <div id="geoAlert" class="alert alert-info mt-3 d-none" role="alert">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div>Getting your location...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card h-100 shadow">
+            <div class="card-body">
+                <h3 class="card-title text-info">Tram Accessibility</h3>
+                <p class="card-text">We analyze proximity to tram stops and lines throughout Antwerp.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow">
+            <div class="card-body">
+                <h3 class="card-title text-info">Bus Connectivity</h3>
+                <p class="card-text">We measure distance to bus stops and service frequency.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow">
+            <div class="card-body">
+                <h3 class="card-title text-info">Velo Bike Stations</h3>
+                <p class="card-text">We check for nearby Velo bike sharing stations for convenient cycling.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const addressForm = document.getElementById('addressForm');
+        const addressInput = document.getElementById('address');
+        const latitudeInput = document.getElementById('latitude');
+        const longitudeInput = document.getElementById('longitude');
+        const useGeolocationInput = document.getElementById('useGeolocation');
+        const geolocateBtn = document.getElementById('geolocateBtn');
+        const geoAlert = document.getElementById('geoAlert');
+        
+        geolocateBtn.addEventListener('click', function() {
+            if (navigator.geolocation) {
+                // Show loading indicator
+                geoAlert.classList.remove('d-none');
+                
+                navigator.geolocation.getCurrentPosition(
+                    // Success callback
+                    function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        latitudeInput.value = lat;
+                        longitudeInput.value = lng;
+                        useGeolocationInput.value = "true";
+                        
+                        // Set address field to coordinates (optional)
+                        addressInput.value = "Your Current Location";
+                        addressInput.setAttribute('readonly', true);
+                        
+                        // Remove the required attribute since we have coordinates
+                        addressInput.removeAttribute('required');
+                        
+                        // Hide loading indicator
+                        geoAlert.classList.add('d-none');
+                        
+                        // Submit the form
+                        addressForm.submit();
+                    },
+                    // Error callback
+                    function(error) {
+                        // Hide loading indicator
+                        geoAlert.classList.add('d-none');
+                        
+                        let errorMessage = "Unable to retrieve your location. ";
+                        
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage += "Please enable location services in your browser settings.";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage += "Location information is unavailable.";
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage += "The request to get your location timed out.";
+                                break;
+                            case error.UNKNOWN_ERROR:
+                                errorMessage += "An unknown error occurred.";
+                                break;
+                        }
+                        
+                        alert(errorMessage);
+                    },
+                    // Options
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 15000,  // Increased timeout to 15 seconds
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        });
+    });
+</script>
+{% endblock %} 

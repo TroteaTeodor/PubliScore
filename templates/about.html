@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}AreaGrade - About{% endblock %}
+
+{% block header_subtitle %}About the AreaGrade Project{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-lg mb-4">
+            <div class="card-body">
+                <h2 class="card-title mb-4 text-info">AreaGrade Project</h2>
+                <p class="lead">AreaGrade helps you find the best areas to rent in Antwerp based on public transport accessibility.</p>
+                
+                <p>This project analyzes OpenStreetMap data for Antwerp to evaluate areas based on their proximity to:</p>
+                <ul>
+                    <li>Tram stops and lines</li>
+                    <li>Bus stops and routes</li>
+                    <li>Velo bike sharing stations</li>
+                </ul>
+                
+                <p>Each location is given a grade from A+ to F based on its overall public transport accessibility score.</p>
+            </div>
+        </div>
+        
+        <div class="card shadow-lg mb-4">
+            <div class="card-body">
+                <h2 class="card-title mb-4 text-info">AI Insights on Public Transport</h2>
+                <div class="ai-insights">
+                    {% if ai_insights %}
+                        <div class="p-3 bg-light rounded">
+                            {{ ai_insights | safe }}
+                        </div>
+                        <p class="text-muted mt-2"><small>Generated with Google's Gemini AI</small></p>
+                    {% else %}
+                        <p class="text-muted">AI insights not available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow-lg">
+            <div class="card-body">
+                <h2 class="card-title mb-4 text-info">About the Data</h2>
+                <p>AreaGrade uses the <a href="https://huggingface.co/datasets/ns2agi/antwerp-osm-navigator" class="text-info">Antwerp OSM Navigator dataset</a> from Hugging Face to evaluate areas. The dataset contains transportation-related nodes from OpenStreetMap.</p>
+                
+                <h5 class="mt-4 text-info">Features</h5>
+                <ul>
+                    <li>Interactive map showing transportation options</li>
+                    <li>Detailed scoring for bus, tram, and Velo access</li>
+                    <li>AI-powered insights on area accessibility</li>
+                    <li>Mobile-friendly design for on-the-go searches</li>
+                </ul>
+                
+                <p class="mt-3">This project was created as part of the Hugging Face Hackathon, focusing on using AI to solve urban transportation challenges.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

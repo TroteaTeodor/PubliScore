@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}AreaGrade - Search{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-lg">
+            <div class="card-body">
+                <h2 class="card-title text-center mb-4">Enter an Address</h2>
+                
+                <form action="/search" method="POST" id="addressForm">
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address in Antwerp</label>
+                        <input type="text" class="form-control form-control-lg" id="address" name="address" 
+                               placeholder="e.g. Meir 1, Antwerp" required>
+                        <div class="form-text">Enter a complete address for the most accurate results</div>
+                    </div>
+                    
+                    <!-- Hidden fields for geolocation -->
+                    <input type="hidden" id="latitude" name="latitude">
+                    <input type="hidden" id="longitude" name="longitude">
+                    <input type="hidden" id="useGeolocation" name="useGeolocation" value="false">
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg mb-2">Grade This Area</button>
+                        <button type="button" id="geolocateBtn" class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-geo-alt-fill"></i> Use My Current Location
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Geolocation status alert - hidden by default -->
+                <div id="geoAlert" class="alert alert-info mt-3 d-none" role="alert">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div>Getting your location...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const addressForm = document.getElementById('addressForm');
+        const addressInput = document.getElementById('address');
+        const latitudeInput = document.getElementById('latitude');
+        const longitudeInput = document.getElementById('longitude');
+        const useGeolocationInput = document.getElementById('useGeolocation');
+        const geolocateBtn = document.getElementById('geolocateBtn');
+        const geoAlert = document.getElementById('geoAlert');
+        
+        geolocateBtn.addEventListener('click', function() {
+            // Show the alert
+            geoAlert.classList.remove('d-none');
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        // Success callback
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        
+                        // Set the hidden fields
+                        latitudeInput.value = lat;
+                        longitudeInput.value = lon;
+                        useGeolocationInput.value = 'true';
+                        
+                        // Set a default address format
+                        addressInput.value = `Current Location (${lat.toFixed(6)}, ${lon.toFixed(6)})`;
+                        
+                        // Hide the alert
+                        geoAlert.classList.add('d-none');
+                        
+                        // Submit the form after a short delay
+                        setTimeout(() => {
+                            addressForm.submit();
+                        }, 500);
+                    },
+                    function(error) {
+                        // Error callback
+                        geoAlert.classList.add('d-none');
+                        alert('Error getting location: ' + error.message);
+                    }
+                );
+            } else {
+                geoAlert.classList.add('d-none');
+                alert('Geolocation is not supported by your browser');
+            }
+        });
+    });
+</script>
+{% endblock %} 

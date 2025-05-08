@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Area Grade Results - {{ address }}{% endblock %}
+
+{% block header_subtitle %}Area assessment for {{ address }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-5">
+        <div class="card mb-4 shadow">
+            <div class="card-body">
+                <h2 class="card-title text-info">Area Grade</h2>
+                <div class="text-center my-4">
+                    <div class="grade-circle {{ grade_results.overall_grade.startswith('A') and 'grade-a' or 
+                                            grade_results.overall_grade.startswith('B') and 'grade-b' or 
+                                            grade_results.overall_grade.startswith('C') and 'grade-c' or 
+                                            grade_results.overall_grade.startswith('D') and 'grade-d' or 'grade-f' }}">
+                        <span class="grade-letter">{{ grade_results.overall_grade }}</span>
+                    </div>
+                    <p class="mt-3">Overall Score: {{ grade_results.overall_score }} / 100</p>
+                </div>
+                
+                {% if ai_explanation %}
+                <div class="mb-4">
+                    <h5 class="text-info mb-3">AI Assessment</h5>
+                    <div class="p-3 bg-light rounded">
+                        {{ ai_explanation|safe|nl2br }}
+                    </div>
+                    <p class="text-muted mt-1"><small>Generated with Google's Gemini AI</small></p>
+                </div>
+                {% endif %}
+                
+                <h3 class="mb-3 text-info">Transport Scores</h3>
+                <div class="mb-3">
+                    <label class="form-label">Tram Accessibility</label>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ grade_results.tram_score }}%"
+                            aria-valuenow="{{ grade_results.tram_score }}" aria-valuemin="0" aria-valuemax="100">{{ grade_results.tram_score }}</div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Bus Connectivity</label>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ grade_results.bus_score }}%"
+                            aria-valuenow="{{ grade_results.bus_score }}" aria-valuemin="0" aria-valuemax="100">{{ grade_results.bus_score }}</div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Velo Bike Stations</label>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ grade_results.velobike_score }}%"
+                            aria-valuenow="{{ grade_results.velobike_score }}" aria-valuemin="0" aria-valuemax="100">{{ grade_results.velobike_score }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow">
+            <div class="card-body">
+                <h3 class="card-title text-info">Nearby Transport Options</h3>
+                {% if grade_results.nearby_transport %}
+                    <div class="list-group">
+                        {% set displayed_count = [0] %}
+                        {% for transport in grade_results.nearby_transport %}
+                            {% if transport.name and transport.name.strip() and 
+                                 transport.type not in ['unknown', 'platform', 'stop_position'] and
+                                 displayed_count[0] < 10 %}
+                                {% if displayed_count.append(displayed_count.pop() + 1) %}{% endif %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1">
+                                            {% if transport.type == 'bus' or transport.type == 'bus_stop' %}
+                                                🚌 Bus Stop
+                                            {% elif transport.type == 'tram' or transport.type == 'tram_stop' %}
+                                                🚊 Tram Stop
+                                            {% elif transport.type == 'velobike' %}
+                                                🚲 Velo Bike Station
+                                            {% else %}
+                                                📍 {{ transport.type|capitalize }}
+                                            {% endif %}
+                                        </h5>
+                                        <small>{{ transport.distance_km }} km</small>
+                                    </div>
+                                    <p class="mb-1">{{ transport.name or 'Unnamed' }}</p>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% if displayed_count[0] == 0 %}
+                        <p class="text-muted">No named transport options found within 1km.</p>
+                    {% endif %}
+                {% else %}
+                    <p class="text-muted">No transport options found within 1km.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="d-grid gap-2">
+            <a href="/" class="btn btn-primary btn-lg">Search Another Location</a>
+        </div>
+    </div>
+    
+    <div class="col-md-7">
+        <div class="card shadow">
+            <div class="card-body">
+                <h3 class="card-title mb-3 text-info">Map</h3>
+                <iframe src="{{ url_for('static', filename='temp_map.html') }}" style="width: 100%; height: 500px; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
