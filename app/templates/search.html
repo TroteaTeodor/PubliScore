@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}Search - PubliScore{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+    #map {
+        height: 600px;
+        width: 100%;
+        border-radius: 5px;
+    }
+    .progress-bar {
+        transition: width 0.3s ease-in-out;
+    }
+    .transport-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+    }
+    .loading.active {
+        display: block;
+    }
+    .score-circle {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        font-size: 3rem;
+        font-weight: bold;
+        color: white;
+        background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+    }
+    .transport-item {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    .transport-item:last-child {
+        border-bottom: none;
+    }
+    .radius-selector {
+        margin-bottom: 15px;
+    }
+    .legend {
+        padding: 6px 8px;
+        font: 14px/16px Arial, Helvetica, sans-serif;
+        background: white;
+        background: rgba(255,255,255,0.8);
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        border-radius: 5px;
+    }
+    .legend i {
+        width: 18px;
+        height: 18px;
+        float: left;
+        margin-right: 8px;
+        opacity: 0.7;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Search Location</h5>
+                    <form id="searchForm" class="mb-3">
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Address</label>
+                            <input type="text" class="form-control" id="address" placeholder="Enter an address in Antwerp">
+                        </div>
+                        <div class="mb-3">
+                            <label for="radius" class="form-label">Search Radius</label>
+                            <select class="form-select" id="radius">
+                                <option value="0.5">500 meters</option>
+                                <option value="1.0" selected>1 kilometer</option>
+                                <option value="2.0">2 kilometers</option>
+                                <option value="3.0">3 kilometers</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Search</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Accessibility Score</h5>
+                    <div id="scoreDisplay" class="text-center">
+                        <div class="score-circle mb-3">
+                            <span id="scoreValue">-</span>
+                        </div>
+                        <div class="progress mb-3">
+                            <div id="scoreBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <p id="scoreDescription" class="text-muted">Select a location to see the score</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Transport Details</h5>
+                    <div id="transportDetails">
+                        <p class="text-muted">Select a location to see transport details</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <div id="map"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="loading">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+    let map;
+    let marker;
+    let circle;
+    let transportMarkers = []; // Array to store transport markers
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize map
+        map = L.map('map').setView([51.2195, 4.4025], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Add legend
+        const legend = L.control({position: 'bottomright'});
+        legend.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'legend');
+            div.innerHTML = `
+                <h4>Transport Types</h4>
+                <div><i style="background: #ff6b6b"></i> Bus Stop</div>
+                <div><i style="background: #4ecdc4"></i> Tram Stop</div>
+                <div><i style="background: #45b7d1"></i> Velo Station</div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+        
+        // Handle map clicks
+        map.on('click', function(e) {
+            updateLocation(e.latlng.lat, e.latlng.lng);
+        });
+        
+        // Handle form submission
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const address = document.getElementById('address').value;
+            if (address) {
+                searchAddress(address);
+            }
+        });
+        
+        // Handle radius change
+        document.getElementById('radius').addEventListener('change', function() {
+            if (marker) {
+                const latlng = marker.getLatLng();
+                updateLocation(latlng.lat, latlng.lng);
+            }
+        });
+    });
+    
+    function updateLocation(lat, lng) {
+        // Update marker
+        if (marker) {
+            marker.setLatLng([lat, lng]);
+        } else {
+            marker = L.marker([lat, lng]).addTo(map);
+        }
+        
+        // Update circle
+        const radius = parseFloat(document.getElementById('radius').value) * 1000; // Convert to meters
+        if (circle) {
+            circle.setLatLng([lat, lng]).setRadius(radius);
+        } else {
+            circle = L.circle([lat, lng], {
+                radius: radius,
+                color: '#0d6efd',
+                fillColor: '#0d6efd',
+                fillOpacity: 0.1
+            }).addTo(map);
+        }
+        
+        // Calculate score
+        calculateScore(lat, lng);
+    }
+    
+    function searchAddress(address) {
+        // Show loading indicator
+        document.querySelector('.loading').classList.add('active');
+        
+        // Use Nominatim for geocoding
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}, Antwerp, Belgium`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    const result = data[0];
+                    updateLocation(parseFloat(result.lat), parseFloat(result.lon));
+                    map.setView([result.lat, result.lon], 16);
+                } else {
+                    alert('Address not found');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error searching address');
+            })
+            .finally(() => {
+                document.querySelector('.loading').classList.remove('active');
+            });
+    }
+    
+    function calculateScore(lat, lng) {
+        // Show loading indicator
+        document.querySelector('.loading').classList.add('active');
+        
+        const radius = document.getElementById('radius').value;
+        
+        fetch(`/api/score?lat=${lat}&lon=${lng}&radius=${radius}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                updateScoreDisplay(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error calculating score: ' + error.message);
+            })
+            .finally(() => {
+                document.querySelector('.loading').classList.remove('active');
+            });
+    }
+    
+    function updateScoreDisplay(data) {
+        try {
+            const score = data.score;
+            const details = data.details;
+            const transportNodes = data.transport_nodes || [];
+            
+            // Update score display
+            document.getElementById('scoreValue').textContent = score.toFixed(1);
+            document.getElementById('scoreBar').style.width = `${score * 10}%`;
+            
+            // Update score description
+            let description = '';
+            if (score >= 8) {
+                description = 'Excellent public transport accessibility';
+            } else if (score >= 6) {
+                description = 'Good public transport accessibility';
+            } else if (score >= 4) {
+                description = 'Moderate public transport accessibility';
+            } else if (score >= 2) {
+                description = 'Limited public transport accessibility';
+            } else {
+                description = 'Poor public transport accessibility';
+            }
+            document.getElementById('scoreDescription').textContent = description;
+            
+            // Update transport details
+            const transportDetails = document.getElementById('transportDetails');
+            transportDetails.innerHTML = `
+                <div class="transport-list">
+                    <div class="transport-item">
+                        <strong>Bus Stops:</strong> ${details.bus_stops}
+                        ${details.closest_bus !== null && details.closest_bus !== undefined ? 
+                            `<br>Closest: ${parseFloat(details.closest_bus).toFixed(2)} km` : 
+                            '<br>No bus stops in range'}
+                    </div>
+                    <div class="transport-item">
+                        <strong>Tram Stops:</strong> ${details.tram_stops}
+                        ${details.closest_tram !== null && details.closest_tram !== undefined ? 
+                            `<br>Closest: ${parseFloat(details.closest_tram).toFixed(2)} km` : 
+                            '<br>No tram stops in range'}
+                    </div>
+                    <div class="transport-item">
+                        <strong>Velo Stations:</strong> ${details.velo_stations}
+                        ${details.closest_velo !== null && details.closest_velo !== undefined ? 
+                            `<br>Closest: ${parseFloat(details.closest_velo).toFixed(2)} km` : 
+                            '<br>No velo stations in range'}
+                    </div>
+                </div>
+            `;
+            
+            // Display transport nodes on the map
+            // First, clear existing transport markers
+            transportMarkers.forEach(marker => {
+                if (marker && map.hasLayer(marker)) {
+                    map.removeLayer(marker);
+                }
+            });
+            transportMarkers = [];
+            
+            // Add new markers for each transport node
+            transportNodes.forEach(node => {
+                try {
+                    let markerColor = '#777777'; // Default color
+                    
+                    // Set color based on transport type
+                    if (node.type === 'bus_stop') {
+                        markerColor = '#ff6b6b'; // Red
+                    } else if (node.type === 'tram_stop') {
+                        markerColor = '#4ecdc4'; // Teal
+                    } else if (node.type === 'velo_station') {
+                        markerColor = '#45b7d1'; // Blue
+                    }
+                    
+                    // Create custom icon with the color
+                    const icon = L.divIcon({
+                        className: 'transport-marker',
+                        html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #ffffff; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8]
+                    });
+                    
+                    // Create and add marker with enhanced popup
+                    const transportMarker = L.marker([node.lat, node.lon], {icon: icon})
+                        .bindPopup(`
+                            <div style="min-width: 150px;">
+                                <b style="color: ${markerColor};">${node.type.replace('_', ' ').toUpperCase()}</b><br>
+                                Distance: ${parseFloat(node.distance).toFixed(2)} km<br>
+                                ID: ${node.id}
+                            </div>
+                        `, {
+                            maxWidth: 200,
+                            className: 'custom-popup'
+                        });
+                    
+                    transportMarker.addTo(map);
+                    transportMarkers.push(transportMarker);
+                } catch (markerError) {
+                    console.error('Error creating marker:', markerError);
+                }
+            });
+        } catch (error) {
+            console.error('Error updating score display:', error);
+            alert('Error updating display: ' + error.message);
+        }
+    }
+</script>
+{% endblock %} 
