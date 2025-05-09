@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}PubliScore - Home{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card mb-5">
+            <div class="card-body text-center py-5">
+                <h1 class="display-4 mb-4">Welcome to PubliScore</h1>
+                <p class="lead mb-4">
+                    Discover the public transport accessibility score for any location in Antwerp.
+                </p>
+                <a href="/search" class="btn btn-primary btn-lg">Search Location</a>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h3 class="card-title">For Students</h3>
+                        <p class="card-text">
+                            Looking for accommodation in Antwerp? Use PubliScore to find locations with excellent 
+                            public transport connections to your university or college. Save on transport costs and 
+                            reduce your carbon footprint.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h3 class="card-title">For Eco-conscious Residents</h3>
+                        <p class="card-text">
+                            Want to reduce your environmental impact? Find apartments and houses well-connected 
+                            by public transport. Make sustainable mobility choices easier by choosing locations 
+                            with high accessibility scores.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="card-title">How It Works</h2>
+                <ol>
+                    <li>Search for an address or location in Antwerp</li>
+                    <li>Our algorithm calculates accessibility based on:
+                        <ul>
+                            <li>Number of public transport stops nearby</li>
+                            <li>Distance to the nearest stops</li>
+                            <li>Types of transport available (bus, tram, train, etc.)</li>
+                        </ul>
+                    </li>
+                    <li>Get a score from 0-10 indicating how well-connected the location is</li>
+                    <li>Use this information to make informed housing decisions</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">About The Data</h2>
+                <p>
+                    PubliScore uses open data from OpenStreetMap for Antwerp to calculate accessibility scores.
+                    The data includes the locations of all public transport stops, stations, and other points of interest
+                    that affect accessibility.
+                </p>
+                <p>
+                    Our algorithm considers multiple factors to provide a comprehensive accessibility score that
+                    reflects real-world transportation options.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

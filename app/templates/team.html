@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}PubliScore - Team{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <h1 class="mb-4">Our Team</h1>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <p class="lead text-center mb-5">
+                    Meet the team behind PubliScore - dedicated to improving urban mobility through data!
+                </p>
+                
+                <div class="text-center mb-5">
+                    <p class="text-muted">
+                        This page will be updated with team member information soon.
+                    </p>
+                </div>
+                
+                <!-- Team member cards will be added here -->
+                <div class="row row-cols-1 row-cols-md-3 g-4" id="team-container">
+                    <!-- Example team member card (to be replaced)
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <h3 class="card-title">Team Member Name</h3>
+                                <p class="card-text">Role / Position</p>
+                                <p class="card-text">Bio information will be added here.</p>
+                            </div>
+                        </div>
+                    </div>
+                    -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title">Project Background</h2>
+                <p>
+                    PubliScore was developed as part of a hackathon project focused on creating tools to improve
+                    urban mobility and accessibility in Antwerp. Our goal was to create a simple yet effective
+                    way to evaluate locations based on their public transport connections.
+                </p>
+                <p>
+                    Using open data from OpenStreetMap, we developed an algorithm that can provide an accessibility
+                    score for any location in Antwerp, helping residents make more informed housing decisions that
+                    support sustainable transportation choices.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

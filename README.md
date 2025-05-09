@@ -1,69 +1,72 @@
-# AreaGrade
+# PubliScore
 
-AreaGrade helps you find the best areas to rent in Antwerp based on public transport accessibility. The project analyzes OpenStreetMap data to evaluate areas based on their proximity to tram stops, bus stops, and Velo bike sharing stations.
+PubliScore is a web application that calculates public transport accessibility scores for locations in Antwerp. It helps students and eco-conscious residents find accommodations with good public transport connections.
 
 ## Features
 
-- Interactive map showing transportation options
-- Detailed scoring for bus, tram, and Velo access
-- AI-powered insights on area accessibility
-- Mobile-friendly design for on-the-go searches
+- Search for any location in Antwerp by address or by clicking on a map
+- Get an accessibility score from 0-10 based on public transport availability
+- View details about nearby public transport stops
+- Interactive map for exploration
 
-## Setup
+## How It Works
+
+PubliScore uses OpenStreetMap data for Antwerp to calculate accessibility scores. The scoring algorithm considers:
+- Number of public transport stops within 1km
+- Distance to the nearest stop
+- Types of transport available
+
+## Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/TroteaTeodor/AreaGrade.git
-cd AreaGrade
+git clone https://github.com/yourusername/PubliScore.git
+cd PubliScore
 ```
 
-2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Add your Google API key for Gemini AI in the `.env` file
-
-5. Run the application:
+3. Run the application:
 ```bash
 python app.py
 ```
 
-## Environment Variables
+4. Open your browser and go to `http://localhost:5000`
 
-Create a `.env` file in the root directory with the following variables:
+## Dataset
 
-- `GOOGLE_API_KEY`: Your Google API key for Gemini AI (get it from [Google AI Studio](https://aistudio.google.com/apikey))
+The application uses the [Antwerp OSM Navigator dataset](https://huggingface.co/datasets/ns2agi/antwerp-osm-navigator) from Hugging Face, which contains OpenStreetMap data for the city of Antwerp.
 
-## Contributing
+## Project Structure
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```
+PubliScore/
+│
+├── app.py                    # Main Flask application
+├── requirements.txt          # Python dependencies
+│
+├── app/
+│   ├── static/               # Static assets (CSS, JS, images)
+│   │   ├── css/
+│   │   ├── js/
+│   │   └── images/
+│   │
+│   ├── templates/            # HTML templates
+│   │   ├── base.html
+│   │   ├── index.html
+│   │   ├── search.html
+│   │   └── team.html
+│   │
+│   ├── models/               # Scoring models and algorithms
+│   │   └── scoring.py
+│   │
+│   └── utils/                # Utility functions
+│       └── data_loader.py
+```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- OpenStreetMap for the transportation data
-- Google's Gemini AI for providing insights
-- The Hugging Face community for the Antwerp OSM Navigator dataset
-
-
-
-
-
-
-
+This project is licensed under the MIT License - see the LICENSE file for details. 
