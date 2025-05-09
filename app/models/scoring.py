@@ -97,9 +97,9 @@ def calculate_accessibility_score(df: pd.DataFrame, lat: float, lon: float, radi
     
     # Count nodes by type
     type_counts = nearby['transport_type'].value_counts()
-    bus_stops = type_counts.get('bus_stop', 0)
-    tram_stops = type_counts.get('tram_stop', 0)
-    velo_stations = type_counts.get('velo_station', 0)
+    bus_stops = int(type_counts.get('bus_stop', 0))  # Convert to Python int
+    tram_stops = int(type_counts.get('tram_stop', 0))  # Convert to Python int
+    velo_stations = int(type_counts.get('velo_station', 0))  # Convert to Python int
     
     # Get closest distances by type
     closest_bus = float('inf')
@@ -123,7 +123,7 @@ def calculate_accessibility_score(df: pd.DataFrame, lat: float, lon: float, radi
         bus_score = min(3.0, bus_stops * 0.4)  # 0.4 points per stop up to 7-8 stops
         if closest_bus < float('inf'):
             # Exponential decay based on distance
-            bus_score *= np.exp(-2 * closest_bus / radius_km)
+            bus_score *= float(np.exp(-2 * closest_bus / radius_km))  # Convert to Python float
     
     # Tram stops: max 4 points (trams are more important as they're faster and more reliable)
     tram_score = 0.0
@@ -131,7 +131,7 @@ def calculate_accessibility_score(df: pd.DataFrame, lat: float, lon: float, radi
         tram_score = min(4.0, tram_stops * 1.0)  # 1 point per stop up to 4 stops
         if closest_tram < float('inf'):
             # Exponential decay based on distance
-            tram_score *= np.exp(-2 * closest_tram / radius_km)
+            tram_score *= float(np.exp(-2 * closest_tram / radius_km))  # Convert to Python float
     
     # Velo stations: max 3 points
     velo_score = 0.0
@@ -139,19 +139,19 @@ def calculate_accessibility_score(df: pd.DataFrame, lat: float, lon: float, radi
         velo_score = min(3.0, velo_stations * 0.6)  # 0.6 points per station up to 5 stations
         if closest_velo < float('inf'):
             # Exponential decay based on distance
-            velo_score *= np.exp(-2 * closest_velo / radius_km)
+            velo_score *= float(np.exp(-2 * closest_velo / radius_km))  # Convert to Python float
     
     # Calculate total score (0-10)
-    total_score = min(10.0, bus_score + tram_score + velo_score)
+    total_score = float(min(10.0, bus_score + tram_score + velo_score))  # Convert to Python float
     
     # Prepare details with safe distance values
     details = {
         'bus_stops': bus_stops,
         'tram_stops': tram_stops,
         'velo_stations': velo_stations,
-        'closest_bus': closest_bus if closest_bus < float('inf') else None,
-        'closest_tram': closest_tram if closest_tram < float('inf') else None,
-        'closest_velo': closest_velo if closest_velo < float('inf') else None
+        'closest_bus': float(closest_bus) if closest_bus < float('inf') else None,
+        'closest_tram': float(closest_tram) if closest_tram < float('inf') else None,
+        'closest_velo': float(closest_velo) if closest_velo < float('inf') else None
     }
     
     return total_score, details 

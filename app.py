@@ -100,15 +100,21 @@ def get_score():
         transport_nodes = []
         if not nearby_nodes.empty:
             for _, node in nearby_nodes.iterrows():
-                transport_nodes.append({
-                    'id': int(node['id']),
-                    'lat': float(node['lat']),
-                    'lon': float(node['lon']),
-                    'type': node['transport_type'],
-                    'distance': float(node['distance'])
-                })
+                node_dict = {
+                    'id': int(node['id']),  # Convert numpy.int64 to Python int
+                    'lat': float(node['lat']),  # Convert numpy.float64 to Python float
+                    'lon': float(node['lon']),  # Convert numpy.float64 to Python float
+                    'transport_type': str(node['transport_type']),  # Convert to string
+                    'distance': float(node['distance'])  # Convert numpy.float64 to Python float
+                }
+                
+                # Add route information if available
+                if 'route_info' in node and node['route_info']:
+                    node_dict['route_info'] = node['route_info']
+                
+                transport_nodes.append(node_dict)
         
-        # Convert NumPy types to Python native types
+        # Convert score and details to Python native types
         response = {
             'score': float(score),  # Convert numpy.float64 to Python float
             'details': {
@@ -122,12 +128,11 @@ def get_score():
             'transport_nodes': transport_nodes
         }
         
-        logger.debug(f"Score calculated: {score}")
         return jsonify(response)
         
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+        logger.error(f"Error processing request: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     # Load data at startup

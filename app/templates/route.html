@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}Route Planner - PubliScore{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+    #map {
+        height: 600px;
+        width: 100%;
+        border-radius: 5px;
+    }
+    .transport-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+    }
+    .loading.active {
+        display: block;
+    }
+    .route-option {
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #dee2e6;
+        transition: transform 0.2s;
+        cursor: pointer;
+    }
+    .route-option:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .route-option.selected {
+        border-color: #0d6efd;
+        background-color: #f8f9ff;
+    }
+    .transport-type-icon {
+        width: 24px;
+        height: 24px;
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+    .legend {
+        padding: 8px 10px;
+        background: white;
+        background: rgba(255,255,255,0.9);
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        border-radius: 5px;
+    }
+    .legend i {
+        width: 16px;
+        height: 16px;
+        float: left;
+        margin-right: 8px;
+        opacity: 0.7;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Plan Your Route</h5>
+                    <form id="routeForm" class="mb-3">
+                        <div class="mb-3">
+                            <label for="startAddress" class="form-label">Start Location</label>
+                            <input type="text" class="form-control" id="startAddress" placeholder="Enter start address in Antwerp">
+                        </div>
+                        <div class="mb-3">
+                            <label for="endAddress" class="form-label">Destination</label>
+                            <input type="text" class="form-control" id="endAddress" placeholder="Enter destination address in Antwerp">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Transport Options</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="busOption" checked>
+                                <label class="form-check-label" for="busOption">
+                                    Bus
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="tramOption" checked>
+                                <label class="form-check-label" for="tramOption">
+                                    Tram
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="bikeOption" checked>
+                                <label class="form-check-label" for="bikeOption">
+                                    Bike (Velo)
+                                </label>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Find Routes</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Route Options</h5>
+                    <div id="routeOptions">
+                        <p class="text-muted">Enter locations to see available routes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <div id="map"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="loading">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+    let map;
+    let startMarker;
+    let endMarker;
+    let routeLayers = [];
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize map
+        map = L.map('map').setView([51.2195, 4.4025], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Add legend
+        const legend = L.control({position: 'bottomright'});
+        legend.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'legend');
+            div.innerHTML = `
+                <h4>Transport Types</h4>
+                <div><i style="background: #ff6b6b"></i> Bus Route</div>
+                <div><i style="background: #4ecdc4"></i> Tram Route</div>
+                <div><i style="background: #45b7d1"></i> Bike Route</div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+        
+        // Handle form submission
+        document.getElementById('routeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const startAddress = document.getElementById('startAddress').value;
+            const endAddress = document.getElementById('endAddress').value;
+            if (startAddress && endAddress) {
+                findRoutes(startAddress, endAddress);
+            }
+        });
+    });
+    
+    function findRoutes(startAddress, endAddress) {
+        // Show loading indicator
+        document.querySelector('.loading').classList.add('active');
+        
+        // First, geocode both addresses
+        Promise.all([
+            geocodeAddress(startAddress),
+            geocodeAddress(endAddress)
+        ]).then(([startLocation, endLocation]) => {
+            if (startLocation && endLocation) {
+                // Update markers
+                updateMarkers(startLocation, endLocation);
+                
+                // Get selected transport options
+                const options = {
+                    bus: document.getElementById('busOption').checked,
+                    tram: document.getElementById('tramOption').checked,
+                    bike: document.getElementById('bikeOption').checked
+                };
+                
+                // Get routes
+                return fetch(`/api/route?start_lat=${startLocation.lat}&start_lon=${startLocation.lon}&end_lat=${endLocation.lat}&end_lon=${endLocation.lon}&options=${JSON.stringify(options)}`);
+            }
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        }).then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            displayRoutes(data.routes);
+        }).catch(error => {
+            console.error('Error:', error);
+            alert('Error finding routes: ' + error.message);
+        }).finally(() => {
+            document.querySelector('.loading').classList.remove('active');
+        });
+    }
+    
+    function geocodeAddress(address) {
+        return fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}, Antwerp, Belgium`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    return {
+                        lat: parseFloat(data[0].lat),
+                        lon: parseFloat(data[0].lon)
+                    };
+                }
+                throw new Error('Address not found');
+            });
+    }
+    
+    function updateMarkers(startLocation, endLocation) {
+        // Update start marker
+        if (startMarker) {
+            startMarker.setLatLng([startLocation.lat, startLocation.lon]);
+        } else {
+            startMarker = L.marker([startLocation.lat, startLocation.lon], {
+                title: 'Start',
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div style="background-color: #28a745; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #ffffff;"></div>',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                })
+            }).addTo(map);
+        }
+        
+        // Update end marker
+        if (endMarker) {
+            endMarker.setLatLng([endLocation.lat, endLocation.lon]);
+        } else {
+            endMarker = L.marker([endLocation.lat, endLocation.lon], {
+                title: 'Destination',
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div style="background-color: #dc3545; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #ffffff;"></div>',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                })
+            }).addTo(map);
+        }
+        
+        // Fit bounds to include both markers
+        const bounds = L.latLngBounds([
+            [startLocation.lat, startLocation.lon],
+            [endLocation.lat, endLocation.lon]
+        ]);
+        map.fitBounds(bounds, { padding: [50, 50] });
+    }
+    
+    function displayRoutes(routes) {
+        // Clear existing routes
+        routeLayers.forEach(layer => {
+            if (map.hasLayer(layer)) {
+                map.removeLayer(layer);
+            }
+        });
+        routeLayers = [];
+        
+        // Update route options display
+        const routeOptions = document.getElementById('routeOptions');
+        if (routes.length === 0) {
+            routeOptions.innerHTML = '<p class="text-muted">No routes found</p>';
+            return;
+        }
+        
+        let routeHtml = '';
+        routes.forEach((route, index) => {
+            let color;
+            switch (route.type) {
+                case 'bus':
+                    color = '#ff6b6b';
+                    break;
+                case 'tram':
+                    color = '#4ecdc4';
+                    break;
+                case 'bike':
+                    color = '#45b7d1';
+                    break;
+                default:
+                    color = '#777777';
+            }
+            
+            routeHtml += `
+                <div class="route-option" data-route-index="${index}" onclick="selectRoute(${index})">
+                    <h6>
+                        <span class="transport-type-icon" style="background-color: ${color}; border-radius: 50%;"></span>
+                        ${route.type.charAt(0).toUpperCase() + route.type.slice(1)} Route
+                    </h6>
+                    <div>
+                        <strong>Duration:</strong> ${Math.round(route.duration)} minutes<br>
+                        <strong>Distance:</strong> ${route.distance.toFixed(1)} km
+                        ${route.transfers ? `<br><strong>Transfers:</strong> ${route.transfers}` : ''}
+                    </div>
+                </div>
+            `;
+            
+            // Draw route on map
+            const routeLine = L.polyline(route.waypoints.map(wp => [wp.lat, wp.lon]), {
+                color: color,
+                weight: 4,
+                opacity: 0.6
+            }).addTo(map);
+            
+            routeLayers.push(routeLine);
+        });
+        
+        routeOptions.innerHTML = routeHtml;
+    }
+    
+    function selectRoute(index) {
+        // Remove selected class from all options
+        document.querySelectorAll('.route-option').forEach(option => {
+            option.classList.remove('selected');
+        });
+        
+        // Add selected class to clicked option
+        const selectedOption = document.querySelector(`.route-option[data-route-index="${index}"]`);
+        if (selectedOption) {
+            selectedOption.classList.add('selected');
+        }
+        
+        // Highlight selected route on map
+        routeLayers.forEach((layer, i) => {
+            layer.setStyle({
+                opacity: i === index ? 0.9 : 0.3,
+                weight: i === index ? 6 : 3
+            });
+        });
+    }
+</script>
+{% endblock %} 

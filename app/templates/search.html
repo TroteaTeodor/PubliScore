@@ -36,7 +36,7 @@
         font-size: 3rem;
         font-weight: bold;
         color: white;
-        background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        background: linear-gradient(45deg, #2196F3, #9C27B0);
     }
     .transport-item {
         padding: 10px;
@@ -140,7 +140,7 @@
     let map;
     let marker;
     let circle;
-    let transportMarkers = []; // Array to store transport markers
+    let transportMarkers = [];
     
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize map
@@ -155,9 +155,9 @@
             const div = L.DomUtil.create('div', 'legend');
             div.innerHTML = `
                 <h4>Transport Types</h4>
-                <div><i style="background: #ff6b6b"></i> Bus Stop</div>
-                <div><i style="background: #4ecdc4"></i> Tram Stop</div>
-                <div><i style="background: #45b7d1"></i> Velo Station</div>
+                <div><i style="background: #2196F3"></i> Bus Stop</div>
+                <div><i style="background: #9C27B0"></i> Tram Stop</div>
+                <div><i style="background: #FF9800"></i> Velo Station</div>
             `;
             return div;
         };
@@ -254,6 +254,7 @@
                     throw new Error(data.error);
                 }
                 updateScoreDisplay(data);
+                displayTransportNodes(data.transport_nodes);
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -265,111 +266,115 @@
     }
     
     function updateScoreDisplay(data) {
-        try {
-            const score = data.score;
-            const details = data.details;
-            const transportNodes = data.transport_nodes || [];
-            
-            // Update score display
-            document.getElementById('scoreValue').textContent = score.toFixed(1);
-            document.getElementById('scoreBar').style.width = `${score * 10}%`;
-            
-            // Update score description
-            let description = '';
-            if (score === 0) {
-                description = 'No public transport available in this area';
-            } else if (score >= 8) {
-                description = 'Excellent public transport accessibility';
-            } else if (score >= 6) {
-                description = 'Good public transport accessibility';
-            } else if (score >= 4) {
-                description = 'Moderate public transport accessibility';
-            } else if (score >= 2) {
-                description = 'Limited public transport accessibility';
-            } else {
-                description = 'Poor public transport accessibility';
-            }
-            document.getElementById('scoreDescription').textContent = description;
-            
-            // Update transport details
-            const transportDetails = document.getElementById('transportDetails');
-            transportDetails.innerHTML = `
-                <div class="transport-list">
-                    <div class="transport-item">
-                        <strong>Bus Stops:</strong> ${details.bus_stops}
-                        ${details.closest_bus !== null && details.closest_bus !== undefined ? 
-                            `<br>Closest: ${parseFloat(details.closest_bus).toFixed(2)} km` : 
-                            '<br>No bus stops in range'}
-                    </div>
-                    <div class="transport-item">
-                        <strong>Tram Stops:</strong> ${details.tram_stops}
-                        ${details.closest_tram !== null && details.closest_tram !== undefined ? 
-                            `<br>Closest: ${parseFloat(details.closest_tram).toFixed(2)} km` : 
-                            '<br>No tram stops in range'}
-                    </div>
-                    <div class="transport-item">
-                        <strong>Velo Stations:</strong> ${details.velo_stations}
-                        ${details.closest_velo !== null && details.closest_velo !== undefined ? 
-                            `<br>Closest: ${parseFloat(details.closest_velo).toFixed(2)} km` : 
-                            '<br>No velo stations in range'}
-                    </div>
-                </div>
-            `;
-            
-            // Display transport nodes on the map
-            // First, clear existing transport markers
-            transportMarkers.forEach(marker => {
-                if (marker && map.hasLayer(marker)) {
-                    map.removeLayer(marker);
-                }
-            });
-            transportMarkers = [];
-            
-            // Add new markers for each transport node
-            transportNodes.forEach(node => {
-                try {
-                    let markerColor = '#777777'; // Default color
-                    
-                    // Set color based on transport type
-                    if (node.type === 'bus_stop') {
-                        markerColor = '#ff6b6b'; // Red
-                    } else if (node.type === 'tram_stop') {
-                        markerColor = '#4ecdc4'; // Teal
-                    } else if (node.type === 'velo_station') {
-                        markerColor = '#45b7d1'; // Blue
-                    }
-                    
-                    // Create custom icon with the color
-                    const icon = L.divIcon({
-                        className: 'transport-marker',
-                        html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #ffffff; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
-                        iconSize: [16, 16],
-                        iconAnchor: [8, 8]
-                    });
-                    
-                    // Create and add marker with enhanced popup
-                    const transportMarker = L.marker([node.lat, node.lon], {icon: icon})
-                        .bindPopup(`
-                            <div style="min-width: 150px;">
-                                <b style="color: ${markerColor};">${node.type.replace('_', ' ').toUpperCase()}</b><br>
-                                Distance: ${parseFloat(node.distance).toFixed(2)} km<br>
-                                ID: ${node.id}
-                            </div>
-                        `, {
-                            maxWidth: 200,
-                            className: 'custom-popup'
-                        });
-                    
-                    transportMarker.addTo(map);
-                    transportMarkers.push(transportMarker);
-                } catch (markerError) {
-                    console.error('Error creating marker:', markerError);
-                }
-            });
-        } catch (error) {
-            console.error('Error updating score display:', error);
-            alert('Error updating display: ' + error.message);
+        const scoreValue = document.getElementById('scoreValue');
+        const scoreBar = document.getElementById('scoreBar');
+        const scoreDescription = document.getElementById('scoreDescription');
+        const transportDetails = document.getElementById('transportDetails');
+        
+        // Update score display
+        scoreValue.textContent = data.score.toFixed(1);
+        scoreBar.style.width = `${data.score * 10}%`;
+        
+        // Update score description
+        let description = '';
+        if (data.score >= 8) {
+            description = 'Excellent public transport accessibility';
+        } else if (data.score >= 6) {
+            description = 'Good public transport accessibility';
+        } else if (data.score >= 4) {
+            description = 'Moderate public transport accessibility';
+        } else if (data.score >= 2) {
+            description = 'Limited public transport accessibility';
+        } else {
+            description = 'Poor public transport accessibility';
         }
+        scoreDescription.textContent = description;
+        
+        // Update transport details
+        const details = data.details;
+        transportDetails.innerHTML = `
+            <div class="transport-list">
+                <div class="transport-item">
+                    <strong>Bus Stops:</strong> ${details.bus_stops}
+                    ${details.closest_bus !== null && details.closest_bus !== undefined ? 
+                        `<br>Closest: ${parseFloat(details.closest_bus).toFixed(2)} km` : 
+                        '<br>No bus stops in range'}
+                </div>
+                <div class="transport-item">
+                    <strong>Tram Stops:</strong> ${details.tram_stops}
+                    ${details.closest_tram !== null && details.closest_tram !== undefined ? 
+                        `<br>Closest: ${parseFloat(details.closest_tram).toFixed(2)} km` : 
+                        '<br>No tram stops in range'}
+                </div>
+                <div class="transport-item">
+                    <strong>Velo Stations:</strong> ${details.velo_stations}
+                    ${details.closest_velo !== null && details.closest_velo !== undefined ? 
+                        `<br>Closest: ${parseFloat(details.closest_velo).toFixed(2)} km` : 
+                        '<br>No velo stations in range'}
+                </div>
+            </div>
+        `;
+    }
+    
+    function displayTransportNodes(transportNodes) {
+        // Clear existing transport markers
+        transportMarkers.forEach(marker => {
+            if (marker && map.hasLayer(marker)) {
+                map.removeLayer(marker);
+            }
+        });
+        transportMarkers = [];
+        
+        // Filter out non-relevant transport nodes
+        const relevantNodes = transportNodes.filter(node => 
+            node.transport_type === 'bus_stop' || 
+            node.transport_type === 'tram_stop' || 
+            node.transport_type === 'velo_station'
+        );
+        
+        // Add markers
+        relevantNodes.forEach(node => {
+            let markerColor;
+            
+            // Set color based on transport type
+            switch(node.transport_type) {
+                case 'bus_stop':
+                    markerColor = '#2196F3'; // Blue
+                    break;
+                case 'tram_stop':
+                    markerColor = '#9C27B0'; // Purple
+                    break;
+                case 'velo_station':
+                    markerColor = '#FF9800'; // Orange
+                    break;
+                default:
+                    return; // Skip other types
+            }
+            
+            // Create custom icon with the color
+            const icon = L.divIcon({
+                className: 'transport-marker',
+                html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #ffffff; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+            
+            // Create and add marker with enhanced popup
+            const transportMarker = L.marker([node.lat, node.lon], {icon: icon})
+                .bindPopup(`
+                    <div style="min-width: 150px;">
+                        <b style="color: ${markerColor};">${node.transport_type.replace('_', ' ').toUpperCase()}</b><br>
+                        Distance: ${parseFloat(node.distance).toFixed(2)} km<br>
+                        ID: ${node.id}
+                    </div>
+                `, {
+                    maxWidth: 200,
+                    className: 'custom-popup'
+                });
+            
+            transportMarker.addTo(map);
+            transportMarkers.push(transportMarker);
+        });
     }
 </script>
 {% endblock %} 
