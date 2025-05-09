@@ -71,6 +71,17 @@ def calculate_accessibility_score(df: pd.DataFrame, lat: float, lon: float, radi
     Returns:
         Tuple[float, Dict[str, Any]]: Score (0-10) and details about nearby transport
     """
+    # Check if the location is within the dataset bounds
+    if df is None or df.empty:
+        return 0.0, {
+            'bus_stops': 0,
+            'tram_stops': 0,
+            'velo_stations': 0,
+            'closest_bus': None,
+            'closest_tram': None,
+            'closest_velo': None
+        }
+    
     # Find nearby transport nodes
     nearby = find_transport_nodes(df, lat, lon, radius_km)
     
@@ -79,9 +90,9 @@ def calculate_accessibility_score(df: pd.DataFrame, lat: float, lon: float, radi
             'bus_stops': 0,
             'tram_stops': 0,
             'velo_stations': 0,
-            'closest_bus': float('inf'),
-            'closest_tram': float('inf'),
-            'closest_velo': float('inf')
+            'closest_bus': None,
+            'closest_tram': None,
+            'closest_velo': None
         }
     
     # Count nodes by type

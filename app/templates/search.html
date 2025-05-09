@@ -276,7 +276,9 @@
             
             // Update score description
             let description = '';
-            if (score >= 8) {
+            if (score === 0) {
+                description = 'No public transport available in this area';
+            } else if (score >= 8) {
                 description = 'Excellent public transport accessibility';
             } else if (score >= 6) {
                 description = 'Good public transport accessibility';
