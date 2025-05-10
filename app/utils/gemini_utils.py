@@ -63,7 +63,13 @@ def generate_location_description(lat: float, lon: float, transport_details: dic
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
-            }]
+            }],
+            "generationConfig": {
+                "temperature": 0.7,
+                "topK": 40,
+                "topP": 0.95,
+                "maxOutputTokens": 200,
+            }
         }
 
         # Make the API request
@@ -71,10 +77,12 @@ def generate_location_description(lat: float, lon: float, transport_details: dic
             'Content-Type': 'application/json'
         }
         
+        logger.debug(f"Making Gemini API request to {GEMINI_API_URL}")
         response = requests.post(
             f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
             headers=headers,
-            json=payload
+            json=payload,
+            timeout=10  # Add timeout
         )
         
         if response.status_code == 200:
@@ -91,10 +99,21 @@ def generate_location_description(lat: float, lon: float, transport_details: dic
             logger.error("No content generated in Gemini API response")
             return None
         else:
-            logger.error(f"Gemini API request failed with status code: {response.status_code}")
-            logger.error(f"Response content: {response.text}")
+            error_msg = f"Gemini API request failed with status code: {response.status_code}"
+            try:
+                error_details = response.json()
+                error_msg += f"\nError details: {error_details}"
+            except:
+                error_msg += f"\nResponse content: {response.text}"
+            logger.error(error_msg)
             return None
             
+    except requests.exceptions.Timeout:
+        logger.error("Gemini API request timed out")
+        return None
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error during Gemini API request: {e}")
+        return None
     except Exception as e:
         logger.error(f"Error generating location description: {e}")
         return None 
