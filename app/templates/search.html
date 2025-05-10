@@ -264,6 +264,7 @@
                 }
                 updateScoreDisplay(data);
                 displayTransportNodes(data.transport_nodes);
+                displayRoutes(lat, lng, radius);
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -352,6 +353,7 @@
         // Add markers
         relevantNodes.forEach(node => {
             let markerColor;
+            // TEMP: console.log(node);
             
             // Set color based on transport type
             switch(node.transport_type) {
@@ -392,6 +394,47 @@
             transportMarker.addTo(map);
             transportMarkers.push(transportMarker);
         });
+    }
+
+    function displayRoutes(lat, lon, radius) {
+        // Construct the URL with the required parameters
+        const url = `/api/routes?lat=${lat}&lon=${lon}&radius=${radius}`;
+        
+        fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (!Array.isArray(data)) {
+                console.error("Unexpected response:", data);
+                return;
+            }
+
+            console.log("ROUTE DATA:", data);
+
+            data.forEach(route => {
+                const coords = route.coordinates.map(([lat, lon]) => [lat, lon]);
+                const color = getColorFromName(route.route_short_name);
+
+                L.polyline(coords, {
+                    color: color,
+                    weight: 3
+                })
+                .bindTooltip(`Route ${route.route_short_name}`)
+                .addTo(map);
+            });
+        })
+        .catch(err => console.error(err));
+    }
+
+    function getColorFromName(name) {
+        let hash = 0;
+
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+
+        const hue = hash % 360;
+
+        return `hsl(${hue}, 70%, 50%)`;
     }
 </script>
 {% endblock %} 

@@ -5,6 +5,7 @@ from app.utils.gemini_utils import generate_location_description
 import os
 import pandas as pd
 import logging
+from app.utils.gtfs_loader import get_routes_with_shapes
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -21,6 +22,9 @@ def load_data():
     """Load the OSM data when the application starts"""
     global osm_data
     try:
+        if osm_data:
+            return True
+
         osm_data = load_osm_data()
         if osm_data is None or osm_data.empty:
             logger.warning("No data loaded")
@@ -81,14 +85,7 @@ def get_score():
         # Check if data is loaded
         if osm_data is None or osm_data.empty:
             logger.warning("OSM data not loaded, attempting to load")
-            if not load_data():
-                logger.error("Failed to load OSM data")
-                return jsonify({'error': 'Data not loaded yet'}), 503
-        
-        # Log data state
-        logger.debug(f"OSM data shape: {osm_data.shape}")
-        logger.debug(f"OSM data columns: {osm_data.columns}")
-        logger.debug(f"OSM data types: {osm_data.dtypes}")
+            return {}
         
         # Calculate score
         logger.debug("Calculating score")
@@ -114,8 +111,36 @@ def get_score():
         logger.error(f"Error in get_score: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/routes', methods=['GET'])
+def get_routes():
+    # Get the latitude, longitude, and radius from the request parameters
+    lat = request.args.get('lat')
+    lon = request.args.get('lon')
+    radius = request.args.get('radius', '1.0')  # Default to 1.0 km if not provided
+
+    # Validate the input
+    try:
+        lat = float(lat)
+        lon = float(lon)
+        radius = float(radius)
+    except ValueError:
+        return jsonify({"error": "Invalid latitude, longitude, or radius values."}), 400
+
+    # Call the modified get_routes_with_shapes function
+    data = get_routes_with_shapes(lat, lon, radius)
+    if not data:
+        return jsonify({"error": "No routes found within the specified area."}), 404
+
+    return jsonify(data)
+
 if __name__ == '__main__':
     # Load data at startup
     if not load_data():
         logger.warning("Failed to load initial data")
+
+     # Log data state
+    logger.debug(f"OSM data shape: {osm_data.shape}")
+    logger.debug(f"OSM data columns: {osm_data.columns}")
+    logger.debug(f"OSM data types: {osm_data.dtypes}")
+
     app.run(host='0.0.0.0', port=5000, debug=True) 
