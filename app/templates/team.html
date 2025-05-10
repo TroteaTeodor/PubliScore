@@ -5,44 +5,71 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-10">
-        <h1 class="mb-4">Our Team</h1>
+        <h1 class="mb-4">Fuego Studios</h1>
         
         <div class="card mb-4">
             <div class="card-body">
                 <p class="lead text-center mb-5">
-                    Meet the team behind PubliScore - dedicated to improving urban mobility through data!
+                    Meet the team behind PubliScore - dedicated to improving urban mobility through data
                 </p>
                 
-                <div class="text-center mb-5">
-                    <p class="text-muted">
-                        This page will be updated with team member information soon.
-                    </p>
-                </div>
-                
-                <!-- Team member cards will be added here -->
-                <div class="row row-cols-1 row-cols-md-3 g-4" id="team-container">
-                    <!-- Example team member card (to be replaced)
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <h3 class="card-title">Team Member Name</h3>
-                                <p class="card-text">Role / Position</p>
-                                <p class="card-text">Bio information will be added here.</p>
-                            </div>
-                        </div>
+            <div class="team-images-wrapper">
+                <div class="slide left-shift">
+                    <img src="../static/img/teodor.jpg" alt="Teodor Trotea">
+                    <div class="code-block">
+                        <code>
+                            <span class="keyword">const</span> profile = &#123;<br>
+                            <span class="property">name</span>: <span class="value">"Teodor Trotea"</span>,<br>
+                            <span class="property">occupation</span>: <span class="value">"Student"</span>,<br>
+                            <span class="property">interests</span>: [<span class="value">"Technology"</span>, <span class="value">"Robotics"</span>, <span class="value">"Data"</span>],<br>
+                            <span class="property">motto</span>: <span class="value">"Creating solutions for problems most won't notice."</span><br>
+                            &#125;;
+                        </code>
                     </div>
-                    -->
+                </div>   
+
+                <div class="slide right-shift">
+                    <img src="../static/img/eugen.jpg" alt="Eugen Donescu">
+                    <div class="code-block">
+                        <code>
+                            <span class="keyword">const</span> profile = &#123;<br>
+                            <span class="property">name</span>: <span class="value">"Eugen Donescu"</span>,<br>
+                            <span class="property">occupation</span>: <span class="value">"Student"</span>,<br>
+                            <span class="property">skills</span>: [<span class="value">"IT Experience"</span>, <span class="value">"Development"</span>],<br>
+                            <span class="property">motto</span>: <span class="value">"Apply, don't theorize"</span><br>
+                            &#125;;
+                        </code>
+                    </div>
                 </div>
+
+                <div class="slide left-shift">
+                    <img src="../static/img/alex.jpg" alt="Alexander Sorodoc">
+                    <div class="code-block">
+                        <code>
+                            <span class="keyword">const</span> profile = &#123;<br>
+                            <span class="property">name</span>: <span class="value">"Alexander"</span>,<br>
+                            <span class="property">occupation</span>: <span class="value">"Student"</span>,<br>
+                            <span class="property">skills</span>: [<span class="value">"Design"</span>, <span class="value">"Frontend"</span>],<br>
+                            <span class="property">motto</span>: <span class="value">"If you start something, see it through."</span><br>
+                            &#125;;
+                        </code>
+                    </div>
+                </div>
+            </div>
+
+        
             </div>
         </div>
         
         <div class="card">
             <div class="card-body">
-                <h2 class="card-title">Project Background</h2>
+                <h2 class="card-title">Project Inspiration</h2>
                 <p>
-                    PubliScore was developed as part of a hackathon project focused on creating tools to improve
-                    urban mobility and accessibility in Antwerp. Our goal was to create a simple yet effective
-                    way to evaluate locations based on their public transport connections.
+                    PubliScore was developed as most ideas are made.. out of pure necessity. As a team of young developers,
+                    you are often faced with the dilemma of transport. As many of us in Belgium find themselves to be expats, 
+                    we aimed to developed PubliScore in hopes of helping those in need of finding just the right location for them to move into.
+                    Whether you're an international student looking to come to Belgium or a family concious of the impact our
+                    modes of transport have on the environment, PubliScore is for you.
                 </p>
                 <p>
                     Using open data from OpenStreetMap, we developed an algorithm that can provide an accessibility
@@ -53,4 +80,5 @@
         </div>
     </div>
 </div>
+
 {% endblock %} 
