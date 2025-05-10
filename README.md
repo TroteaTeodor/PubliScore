@@ -108,6 +108,10 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```bash
 flask run
 ```
+Or Run python:
+```bash
+python app.py
+```
 
 3. Open in browser:
 ```
