@@ -1355,14 +1355,14 @@
         // Get necessary DOM elements
         const travelTimeElement = document.getElementById('travelTime');
         const showIsochroneElement = document.getElementById('showIsochrone');
+        const loadingElement = document.querySelector('.loading');
         
         if (!travelTimeElement || !showIsochroneElement) {
             console.error("Travel time controls not found");
             return;
         }
         
-        // Show loading indicator
-        const loadingElement = document.querySelector('.loading');
+        // Show loading indicator immediately
         if (loadingElement) {
             loadingElement.classList.add('active');
         }
