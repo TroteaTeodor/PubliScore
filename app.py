@@ -242,9 +242,24 @@ def get_recommendations():
         
         # Calculate actual scores and enrich descriptions
         for rec in recommendations:
-            score, details = calculate_accessibility_score(osm_data, rec['lat'], rec['lon'], 1.0)
-            rec['score'] = score
-            rec['description'] = generate_location_description(rec['lat'], rec['lon'], details)
+            try:
+                score, details = calculate_accessibility_score(osm_data, rec['lat'], rec['lon'], 1.0)
+                rec['score'] = score
+                
+                # Try to get Gemini description
+                try:
+                    gemini_description = generate_location_description(rec['lat'], rec['lon'], details)
+                    if gemini_description:
+                        rec['description'] = gemini_description
+                except Exception as gemini_error:
+                    logger.error(f"Error generating Gemini description for {rec['title']}: {gemini_error}")
+                    # Keep the default description if Gemini fails
+                    pass
+                    
+            except Exception as score_error:
+                logger.error(f"Error calculating score for {rec['title']}: {score_error}")
+                # Keep the default score if calculation fails
+                pass
         
         return jsonify({'recommendations': recommendations})
         
