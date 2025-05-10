@@ -179,6 +179,110 @@
         width: 100%;
         margin-bottom: 10px;
     }
+    
+    /* Add styles for the suggestions section */
+    .suggestions-section {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .suggestions-section h3 {
+        color: #2196F3;
+        margin-bottom: 15px;
+    }
+    
+    .suggestions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 15px;
+    }
+    
+    .suggestion-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-left: 4px solid #2196F3;
+    }
+    
+    .suggestion-card h4 {
+        color: #1976D2;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+    }
+    
+    .suggestion-card p {
+        color: #666;
+        font-size: 0.9em;
+        margin-bottom: 0;
+    }
+    
+    .suggestion-card .score {
+        font-weight: bold;
+        color: #2196F3;
+        margin-top: 10px;
+    }
+    
+    /* Add styles for the recommendations section */
+    .recommendations-section {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .recommendations-section h3 {
+        color: #2196F3;
+        margin-bottom: 15px;
+    }
+    
+    .recommendation-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border-left: 4px solid #2196F3;
+    }
+    
+    .recommendation-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .recommendation-card h4 {
+        color: #1976D2;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+    }
+    
+    .recommendation-card p {
+        color: #666;
+        font-size: 0.9em;
+        margin-bottom: 10px;
+    }
+    
+    .recommendation-card .score {
+        font-weight: bold;
+        color: #2196F3;
+        display: inline-block;
+        padding: 4px 8px;
+        background: rgba(33, 150, 243, 0.1);
+        border-radius: 4px;
+    }
+    
+    .recommendation-card .address {
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 5px;
+    }
 </style>
 {% endblock %}
 
@@ -253,6 +357,14 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Add recommendations section -->
+            <div class="recommendations-section">
+                <h3>Recommended Locations</h3>
+                <div id="recommendationsContent">
+                    <p class="text-muted">Loading recommendations...</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -284,6 +396,9 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
+        
+        // Load initial recommendations
+        loadRecommendations();
         
         // Add legend
         const legend = L.control({position: 'bottomright'});
@@ -705,6 +820,154 @@
             console.error('Error creating heatmap:', error);
             alert('Error creating heatmap: ' + error.message);
         }
+    }
+    
+    function getAreaSuggestions(lat, lng) {
+        // Show loading indicator
+        document.querySelector('.loading').classList.add('active');
+        
+        fetch(`/api/score?lat=${lat}&lon=${lng}&radius=${document.getElementById('radius').value}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                updateSuggestions(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('suggestionsContent').innerHTML = 
+                    `<p class="text-danger">Error loading suggestions: ${error.message}</p>`;
+            })
+            .finally(() => {
+                document.querySelector('.loading').classList.remove('active');
+            });
+    }
+    
+    function updateSuggestions(data) {
+        const suggestionsContent = document.getElementById('suggestionsContent');
+        
+        if (!data.location_description) {
+            suggestionsContent.innerHTML = '<p class="text-muted">No suggestions available for this area</p>';
+            return;
+        }
+        
+        // Create suggestions grid
+        let html = '<div class="suggestions-grid">';
+        
+        // Add main area description
+        html += `
+            <div class="suggestion-card">
+                <h4>Area Overview</h4>
+                <p>${data.location_description}</p>
+                <div class="score">Accessibility Score: ${data.score.toFixed(1)}/10</div>
+            </div>
+        `;
+        
+        // Add transport details
+        const details = data.details;
+        html += `
+            <div class="suggestion-card">
+                <h4>Transport Options</h4>
+                <p>
+                    <strong>Bus Stops:</strong> ${details.bus_stops}<br>
+                    <strong>Tram Stops:</strong> ${details.tram_stops}<br>
+                    <strong>Velo Stations:</strong> ${details.velo_stations}
+                </p>
+            </div>
+        `;
+        
+        // Add recommendations based on score
+        let recommendation = '';
+        if (data.score >= 8) {
+            recommendation = 'This is an excellent location for public transport accessibility. Consider this area if you rely heavily on public transportation.';
+        } else if (data.score >= 6) {
+            recommendation = 'This area offers good public transport options. It\'s a solid choice for regular public transport users.';
+        } else if (data.score >= 4) {
+            recommendation = 'The public transport coverage is moderate. Consider this area if you have alternative transport options available.';
+        } else if (data.score >= 2) {
+            recommendation = 'Public transport options are limited in this area. You might want to consider locations with better connectivity.';
+        } else {
+            recommendation = 'This area has poor public transport accessibility. Consider looking at other locations with better transport options.';
+        }
+        
+        html += `
+            <div class="suggestion-card">
+                <h4>Recommendation</h4>
+                <p>${recommendation}</p>
+            </div>
+        `;
+        
+        html += '</div>';
+        suggestionsContent.innerHTML = html;
+    }
+    
+    function loadRecommendations() {
+        // Show loading indicator
+        document.querySelector('.loading').classList.add('active');
+        
+        fetch('/api/recommendations')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                updateRecommendations(data.recommendations);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('recommendationsContent').innerHTML = 
+                    `<p class="text-danger">Error loading recommendations: ${error.message}</p>`;
+            })
+            .finally(() => {
+                document.querySelector('.loading').classList.remove('active');
+            });
+    }
+    
+    function updateRecommendations(recommendations) {
+        const recommendationsContent = document.getElementById('recommendationsContent');
+        
+        if (!recommendations || recommendations.length === 0) {
+            recommendationsContent.innerHTML = '<p class="text-muted">No recommendations available</p>';
+            return;
+        }
+        
+        let html = '';
+        recommendations.forEach(rec => {
+            html += `
+                <div class="recommendation-card" onclick="viewRecommendation(${rec.lat}, ${rec.lon}, '${rec.address}')">
+                    <h4>${rec.title}</h4>
+                    <p>${rec.description}</p>
+                    <div class="score">Accessibility Score: ${rec.score.toFixed(1)}/10</div>
+                    <div class="address">
+                        <i class="fas fa-map-marker-alt"></i> ${rec.address}
+                    </div>
+                </div>
+            `;
+        });
+        
+        recommendationsContent.innerHTML = html;
+    }
+    
+    function viewRecommendation(lat, lon, address) {
+        // Update map view
+        map.setView([lat, lon], 16);
+        
+        // Update location
+        updateLocation(lat, lon);
+        
+        // Update address input
+        document.getElementById('address').value = address;
     }
 </script>
 {% endblock %} 

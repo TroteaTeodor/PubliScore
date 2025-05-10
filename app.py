@@ -181,6 +181,73 @@ def get_all_transport_nodes():
         logger.error(f"Error in get_all_transport_nodes: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/recommendations')
+def get_recommendations():
+    """API endpoint to get Gemini-generated location recommendations"""
+    try:
+        # Check if data is loaded
+        if osm_data is None or osm_data.empty:
+            logger.warning("OSM data not loaded, attempting to load")
+            if not load_data():
+                logger.error("Failed to load OSM data")
+                return jsonify({'error': 'Data not loaded yet'}), 503
+        
+        # Define some interesting areas in Antwerp
+        recommendations = [
+            {
+                'title': 'Central Station Area',
+                'address': 'Koningin Astridplein 27, 2018 Antwerpen',
+                'lat': 51.2175,
+                'lon': 4.4214,
+                'description': 'Excellent transport hub with direct connections to the central station, tram lines, and bus routes. Perfect for commuters.',
+                'score': 9.2
+            },
+            {
+                'title': 'Groenplaats',
+                'address': 'Groenplaats, 2000 Antwerpen',
+                'lat': 51.2197,
+                'lon': 4.4034,
+                'description': 'Historic square with great tram connections and shopping areas. Well-connected to the city center.',
+                'score': 8.5
+            },
+            {
+                'title': 'Eilandje District',
+                'address': 'Sint-Laureiskaai, 2000 Antwerpen',
+                'lat': 51.2289,
+                'lon': 4.4089,
+                'description': 'Modern waterfront area with good bus connections and velo stations. Popular for its museums and restaurants.',
+                'score': 7.8
+            },
+            {
+                'title': 'Zuid District',
+                'address': 'De Keyserlei, 2018 Antwerpen',
+                'lat': 51.2147,
+                'lon': 4.4189,
+                'description': 'Business district with excellent tram and bus connections. Close to the central station.',
+                'score': 8.9
+            },
+            {
+                'title': 'Het Zuid',
+                'address': 'Leopold De Waelplaats, 2000 Antwerpen',
+                'lat': 51.2075,
+                'lon': 4.3975,
+                'description': 'Cultural district with good public transport options and velo stations. Home to the Museum of Fine Arts.',
+                'score': 7.5
+            }
+        ]
+        
+        # Calculate actual scores and enrich descriptions
+        for rec in recommendations:
+            score, details = calculate_accessibility_score(osm_data, rec['lat'], rec['lon'], 1.0)
+            rec['score'] = score
+            rec['description'] = generate_location_description(rec['lat'], rec['lon'], details)
+        
+        return jsonify({'recommendations': recommendations})
+        
+    except Exception as e:
+        logger.error(f"Error in get_recommendations: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Load data at startup
     if not load_data():
