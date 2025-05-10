@@ -183,14 +183,17 @@ h1.mb-4 {
     font-family: 'Open Sans';
 }
 
-.home-image img{
+.home-image {
     display: flex;
     justify-content: center;
-    justify-self: center;
+    align-items: center;
+    width: 100%;
+}
+
+.home-image img {
     width: 400px;
     height: auto;
 }
-
 
 /* Responsive Animation on Resize */
 @media (max-width: 1248px) {
