@@ -439,9 +439,9 @@
                 <div class="card-body">
                     <h5 class="card-title">Search Location</h5>
                     <form id="searchForm" class="mb-3">
-                        <div class="mb-3">
+                        <div class="form-group mb-3">
                             <label for="address" class="form-label">Address</label>
-                            <input type="text" class="form-control" id="address" placeholder="Enter an address in Antwerp">
+                            <input type="text" class="form-control" id="address" placeholder="Enter an address in Antwerp" autocomplete="off">
                         </div>
                         <div class="mb-3">
                             <label for="radius" class="form-label">Search Radius: 
@@ -472,8 +472,10 @@
                 <div class="card-body">
                     <h5 class="card-title">Accessibility Score</h5>
                     <div id="scoreDisplay" class="text-center">
-                        <div class="score-circle mb-3">
-                            <span id="scoreValue">-</span>
+                        <div class="score-container">
+                            <div class="score-circle mb-3">
+                                <span id="scoreValue">-</span>
+                            </div>
                         </div>
                         <div class="progress mb-3">
                             <div id="scoreBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
@@ -538,7 +540,9 @@
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="{{ url_for('static', filename='js/address-autocomplete.js') }}"></script>
 <script>
+    console.log('Main script loaded'); // Debug log
     let map;
     let marker;
     let circle;
@@ -783,34 +787,122 @@
         const transportDetails = document.getElementById('transportDetails');
         const locationDescription = document.getElementById('locationDescription');
         
-        // Update score display
-        scoreValue.textContent = data.score.toFixed(1);
-        scoreBar.style.width = `${data.score * 10}%`;
+        // Calculate Gemini score
+        const details = data.details;
         
-        // Update score description
-        let description = '';
-        if (data.score >= 8) {
-            description = 'Excellent public transport accessibility';
-        } else if (data.score >= 6) {
-            description = 'Good public transport accessibility';
-        } else if (data.score >= 4) {
-            description = 'Moderate public transport accessibility';
-        } else if (data.score >= 2) {
-            description = 'Limited public transport accessibility';
-        } else {
-            description = 'Poor public transport accessibility';
-        }
-        scoreDescription.textContent = description;
-        
-        // Update location description
-        if (data.location_description) {
-            locationDescription.textContent = data.location_description;
-        } else {
-            locationDescription.textContent = 'No description available for this location';
-        }
+        // Fetch real-time De Lijn data and location info
+        fetch(`/api/location_info?lat=${data.lat}&lon=${data.lon}`)
+            .then(response => response.json())
+            .then(locationData => {
+                // Base scores from our data (max 10 points)
+                const busScore = Math.min(3, details.bus_stops * 0.3);  // Max 3 points
+                const tramScore = Math.min(4, details.tram_stops * 0.4);  // Max 4 points
+                const veloScore = Math.min(2, details.velo_stations * 0.2);  // Max 2 points
+                
+                // Distance scores (max 1 point each)
+                const busDistanceScore = details.closest_bus ? 
+                    Math.min(1, (2 - Math.min(details.closest_bus, 2)) * 0.5) : 0;
+                const tramDistanceScore = details.closest_tram ? 
+                    Math.min(1, (1.5 - Math.min(details.closest_tram, 1.5)) * 0.67) : 0;
+                const veloDistanceScore = details.closest_velo ? 
+                    Math.min(1, (2 - Math.min(details.closest_velo, 2)) * 0.5) : 0;
+
+                // De Lijn specific penalties (max -3 points)
+                const delijnPenalties = calculateDeLijnPenalties(locationData);
+                
+                // Location quality penalties (max -4 points)
+                const locationPenalties = calculateLocationPenalties(locationData);
+                
+                // Calculate total score (max 10 points)
+                const baseScore = busScore + tramScore + veloScore + 
+                                busDistanceScore + tramDistanceScore + veloDistanceScore;
+                
+                // Apply all penalties
+                const missingTransportPenalty = 
+                    (details.bus_stops === 0 ? 1 : 0) + 
+                    (details.tram_stops === 0 ? 2 : 0) + 
+                    (details.velo_stations === 0 ? 1 : 0);
+                
+                // Final Gemini score out of 10
+                const geminiScore = Math.max(0, Math.min(10, 
+                    baseScore - missingTransportPenalty - delijnPenalties - locationPenalties
+                ));
+
+                // Calculate average of both scores
+                const averageScore = (data.score + geminiScore) / 2;
+                
+                // Update score display
+                scoreValue.textContent = averageScore.toFixed(1);
+                scoreBar.style.width = `${averageScore * 10}%`;
+                
+                // Update score description based on average score
+                let description = '';
+                if (averageScore >= 8) {
+                    description = 'Excellent public transport accessibility';
+                } else if (averageScore >= 6) {
+                    description = 'Good public transport accessibility';
+                } else if (averageScore >= 4) {
+                    description = 'Moderate public transport accessibility';
+                } else if (averageScore >= 2) {
+                    description = 'Limited public transport accessibility';
+                } else {
+                    description = 'Poor public transport accessibility';
+                }
+                scoreDescription.textContent = description;
+
+                // Update location description based on average score
+                let locationDesc = '';
+                if (averageScore >= 8) {
+                    locationDesc = `This location offers excellent public transport accessibility with ${details.bus_stops} bus stops, ${details.tram_stops} tram stops, and ${details.velo_stations} velo stations nearby. The area has high-quality De Lijn service and good infrastructure.`;
+                } else if (averageScore >= 6) {
+                    locationDesc = `This location provides good public transport accessibility with ${details.bus_stops} bus stops, ${details.tram_stops} tram stops, and ${details.velo_stations} velo stations in the area. The De Lijn service is reliable and the infrastructure is well-maintained.`;
+                } else if (averageScore >= 4) {
+                    locationDesc = `This location has moderate public transport accessibility with ${details.bus_stops} bus stops, ${details.tram_stops} tram stops, and ${details.velo_stations} velo stations. The De Lijn service is adequate but could be improved.`;
+                } else if (averageScore >= 2) {
+                    locationDesc = `This location has limited public transport accessibility with only ${details.bus_stops} bus stops, ${details.tram_stops} tram stops, and ${details.velo_stations} velo stations. The De Lijn service is infrequent and the infrastructure needs improvement.`;
+                } else {
+                    locationDesc = `This location has poor public transport accessibility with minimal transport options (${details.bus_stops} bus stops, ${details.tram_stops} tram stops, ${details.velo_stations} velo stations). The De Lijn service is unreliable and the infrastructure is inadequate.`;
+                }
+                locationDescription.textContent = locationDesc;
+            })
+            .catch(error => {
+                console.error('Error fetching location data:', error);
+                // If API fails, just use the original score
+                scoreValue.textContent = data.score.toFixed(1);
+                scoreBar.style.width = `${data.score * 10}%`;
+                
+                // Update score description
+                let description = '';
+                if (data.score >= 8) {
+                    description = 'Excellent public transport accessibility';
+                } else if (data.score >= 6) {
+                    description = 'Good public transport accessibility';
+                } else if (data.score >= 4) {
+                    description = 'Moderate public transport accessibility';
+                } else if (data.score >= 2) {
+                    description = 'Limited public transport accessibility';
+                } else {
+                    description = 'Poor public transport accessibility';
+                }
+                scoreDescription.textContent = description;
+
+                // Update location description based on original score
+                let locationDesc = '';
+                if (data.score >= 8) {
+                    locationDesc = `This location offers excellent public transport accessibility with ${details.bus_stops} bus stops, ${details.tram_stops} tram stops, and ${details.velo_stations} velo stations nearby.`;
+                } else if (data.score >= 6) {
+                    locationDesc = `This location provides good public transport accessibility with ${details.bus_stops} bus stops, ${details.tram_stops} tram stops, and ${details.velo_stations} velo stations in the area.`;
+                } else if (data.score >= 4) {
+                    locationDesc = `This location has moderate public transport accessibility with ${details.bus_stops} bus stops, ${details.tram_stops} tram stops, and ${details.velo_stations} velo stations.`;
+                } else if (data.score >= 2) {
+                    locationDesc = `This location has limited public transport accessibility with only ${details.bus_stops} bus stops, ${details.tram_stops} tram stops, and ${details.velo_stations} velo stations.`;
+                } else {
+                    locationDesc = `This location has poor public transport accessibility with minimal transport options (${details.bus_stops} bus stops, ${details.tram_stops} tram stops, ${details.velo_stations} velo stations).`;
+                }
+                locationDescription.textContent = locationDesc;
+            });
         
         // Update transport details
-        const details = data.details;
         transportDetails.innerHTML = `
             <div class="transport-list">
                 <div class="transport-item">
@@ -833,6 +925,68 @@
                 </div>
             </div>
         `;
+    }
+    
+    function calculateDeLijnPenalties(locationData) {
+        let penalties = 0;
+        
+        // Penalize based on De Lijn service frequency (max -1 point)
+        if (locationData.delijn_frequency === 'low') penalties += 1;
+        if (locationData.delijn_frequency === 'medium') penalties += 0.5;
+        
+        // Penalize based on De Lijn service reliability (max -1 point)
+        if (locationData.delijn_reliability < 0.8) penalties += 0.5;
+        if (locationData.delijn_reliability < 0.6) penalties += 0.5;
+        
+        // Penalize based on De Lijn coverage (max -1 point)
+        if (locationData.delijn_coverage === 'poor') penalties += 1;
+        if (locationData.delijn_coverage === 'fair') penalties += 0.5;
+        
+        return Math.min(3, penalties);
+    }
+
+    function calculateLocationPenalties(locationData) {
+        let penalties = 0;
+        
+        // Penalize based on neighborhood quality (max -1 point)
+        if (locationData.neighborhood_quality === 'poor') penalties += 1;
+        if (locationData.neighborhood_quality === 'fair') penalties += 0.5;
+        
+        // Penalize based on accessibility features (max -2 points)
+        if (!locationData.has_sidewalks) penalties += 0.7;
+        if (!locationData.has_bike_lanes) penalties += 0.7;
+        if (!locationData.has_crosswalks) penalties += 0.6;
+        
+        // Penalize based on safety rating (max -1 point)
+        if (locationData.safety_rating < 7) penalties += 0.5;
+        if (locationData.safety_rating < 5) penalties += 0.5;
+        
+        return Math.min(4, penalties);
+    }
+
+    function calculateBasicScore(details) {
+        // Fallback basic scoring if API fails
+        const busScore = Math.min(3, details.bus_stops * 0.3);
+        const tramScore = Math.min(4, details.tram_stops * 0.4);
+        const veloScore = Math.min(2, details.velo_stations * 0.2);
+        
+        const busDistanceScore = details.closest_bus ? 
+            Math.min(1, (2 - Math.min(details.closest_bus, 2)) * 0.5) : 0;
+        const tramDistanceScore = details.closest_tram ? 
+            Math.min(1, (1.5 - Math.min(details.closest_tram, 1.5)) * 0.67) : 0;
+        const veloDistanceScore = details.closest_velo ? 
+            Math.min(1, (2 - Math.min(details.closest_velo, 2)) * 0.5) : 0;
+
+        const missingTransportPenalty = 
+            (details.bus_stops === 0 ? 1 : 0) + 
+            (details.tram_stops === 0 ? 2 : 0) + 
+            (details.velo_stations === 0 ? 1 : 0);
+
+        return Math.max(0, Math.min(10, 
+            busScore + tramScore + veloScore + 
+            busDistanceScore + tramDistanceScore + veloDistanceScore - 
+            missingTransportPenalty
+        ));
     }
     
     function displayTransportNodes(transportNodes) {
@@ -1201,14 +1355,14 @@
         // Get necessary DOM elements
         const travelTimeElement = document.getElementById('travelTime');
         const showIsochroneElement = document.getElementById('showIsochrone');
+        const loadingElement = document.querySelector('.loading');
         
         if (!travelTimeElement || !showIsochroneElement) {
             console.error("Travel time controls not found");
             return;
         }
         
-        // Show loading indicator
-        const loadingElement = document.querySelector('.loading');
+        // Show loading indicator immediately
         if (loadingElement) {
             loadingElement.classList.add('active');
         }
