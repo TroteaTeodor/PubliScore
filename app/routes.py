@@ -9,13 +9,10 @@ def get_location_info():
         return jsonify({'error': 'Missing coordinates'}), 400
     
     try:
-        # Fetch De Lijn data
         delijn_data = fetch_delijn_data(lat, lon)
         
-        # Fetch neighborhood data
         neighborhood_data = fetch_neighborhood_data(lat, lon)
         
-        # Combine all data
         location_data = {
             'delijn_frequency': delijn_data.get('frequency', 'unknown'),
             'delijn_reliability': delijn_data.get('reliability', 0.5),
@@ -32,8 +29,6 @@ def get_location_info():
         return jsonify({'error': str(e)}), 500
 
 def fetch_delijn_data(lat, lon):
-    # TODO: Implement actual De Lijn API integration
-    # For now, return mock data
     return {
         'frequency': 'medium',
         'reliability': 0.75,
@@ -41,8 +36,6 @@ def fetch_delijn_data(lat, lon):
     }
 
 def fetch_neighborhood_data(lat, lon):
-    # TODO: Implement actual neighborhood data fetching
-    # For now, return mock data
     return {
         'quality': 'fair',
         'has_sidewalks': True,

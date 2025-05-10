@@ -140,13 +140,11 @@
     let routeLayers = [];
     
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize map
         map = L.map('map').setView([51.2195, 4.4025], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
         
-        // Add legend
         const legend = L.control({position: 'bottomright'});
         legend.onAdd = function(map) {
             const div = L.DomUtil.create('div', 'legend');
@@ -160,7 +158,6 @@
         };
         legend.addTo(map);
         
-        // Handle form submission
         document.getElementById('routeForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const startAddress = document.getElementById('startAddress').value;
@@ -172,26 +169,21 @@
     });
     
     function findRoutes(startAddress, endAddress) {
-        // Show loading indicator
         document.querySelector('.loading').classList.add('active');
         
-        // First, geocode both addresses
         Promise.all([
             geocodeAddress(startAddress),
             geocodeAddress(endAddress)
         ]).then(([startLocation, endLocation]) => {
             if (startLocation && endLocation) {
-                // Update markers
                 updateMarkers(startLocation, endLocation);
                 
-                // Get selected transport options
                 const options = {
                     bus: document.getElementById('busOption').checked,
                     tram: document.getElementById('tramOption').checked,
                     bike: document.getElementById('bikeOption').checked
                 };
                 
-                // Get routes
                 return fetch(`/api/route?start_lat=${startLocation.lat}&start_lon=${startLocation.lon}&end_lat=${endLocation.lat}&end_lon=${endLocation.lon}&options=${JSON.stringify(options)}`);
             }
         }).then(response => {
@@ -227,7 +219,6 @@
     }
     
     function updateMarkers(startLocation, endLocation) {
-        // Update start marker
         if (startMarker) {
             startMarker.setLatLng([startLocation.lat, startLocation.lon]);
         } else {
@@ -242,7 +233,6 @@
             }).addTo(map);
         }
         
-        // Update end marker
         if (endMarker) {
             endMarker.setLatLng([endLocation.lat, endLocation.lon]);
         } else {
@@ -257,7 +247,6 @@
             }).addTo(map);
         }
         
-        // Fit bounds to include both markers
         const bounds = L.latLngBounds([
             [startLocation.lat, startLocation.lon],
             [endLocation.lat, endLocation.lon]
@@ -266,7 +255,6 @@
     }
     
     function displayRoutes(routes) {
-        // Clear existing routes
         routeLayers.forEach(layer => {
             if (map.hasLayer(layer)) {
                 map.removeLayer(layer);
@@ -274,7 +262,6 @@
         });
         routeLayers = [];
         
-        // Update route options display
         const routeOptions = document.getElementById('routeOptions');
         if (routes.length === 0) {
             routeOptions.innerHTML = '<p class="text-muted">No routes found</p>';
@@ -312,7 +299,6 @@
                 </div>
             `;
             
-            // Draw route on map
             const routeLine = L.polyline(route.waypoints.map(wp => [wp.lat, wp.lon]), {
                 color: color,
                 weight: 4,
@@ -326,18 +312,15 @@
     }
     
     function selectRoute(index) {
-        // Remove selected class from all options
         document.querySelectorAll('.route-option').forEach(option => {
             option.classList.remove('selected');
         });
         
-        // Add selected class to clicked option
         const selectedOption = document.querySelector(`.route-option[data-route-index="${index}"]`);
         if (selectedOption) {
             selectedOption.classList.add('selected');
         }
         
-        // Highlight selected route on map
         routeLayers.forEach((layer, i) => {
             layer.setStyle({
                 opacity: i === index ? 0.9 : 0.3,

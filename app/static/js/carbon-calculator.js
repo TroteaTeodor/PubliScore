@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // CO2 emission factors (grams per km)
         const emissionFactors = {
             petrol: 120,
             diesel: 130,
@@ -21,13 +20,11 @@ document.addEventListener('DOMContentLoaded', function() {
             electric: 40
         };
 
-        // Average CO2 absorption by a tree per year (kg)
         const TREE_CO2_ABSORPTION = 22;
 
         calculator.addEventListener('submit', function(e) {
             e.preventDefault();
             try {
-                // Get form values
                 const distance = parseFloat(document.getElementById('distance').value);
                 const days = parseInt(document.getElementById('days').value);
                 const carType = document.getElementById('carType').value;
@@ -37,18 +34,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error('Invalid input values');
                 }
 
-                // Calculate annual CO2 emissions
-                const dailyEmissions = (distance * emissionFactors[carType]) / 1000; // Convert to kg
+                const dailyEmissions = (distance * emissionFactors[carType]) / 1000;
                 const annualEmissions = dailyEmissions * days * weeks;
 
-                // Calculate equivalent trees
                 const treesEquivalent = Math.round(annualEmissions / TREE_CO2_ABSORPTION);
 
-                // Update results
                 document.getElementById('co2Savings').textContent = Math.round(annualEmissions);
                 document.getElementById('treesEquivalent').textContent = treesEquivalent;
 
-                // Show results
                 results.style.display = 'block';
             } catch (error) {
                 console.error('Error calculating carbon savings:', error);

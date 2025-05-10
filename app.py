@@ -10,7 +10,6 @@ import json
 import math
 from geopy.distance import geodesic
 
-# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,6 @@ app = Flask(__name__,
            template_folder='app/templates',
            static_folder='app/static')
 
-# Initialize osm_data as None
 osm_data = None
 
 def load_data():
@@ -56,14 +54,12 @@ def search():
 def get_score():
     """API endpoint to get the accessibility score for a location"""
     try:
-        # Get and validate parameters
         lat = request.args.get('lat')
         lon = request.args.get('lon')
         radius = request.args.get('radius', '1.0')
         
         logger.debug(f"Received request with lat={lat}, lon={lon}, radius={radius}")
         
-        # Convert parameters to float
         try:
             lat = float(lat)
             lon = float(lon)
@@ -72,39 +68,31 @@ def get_score():
             logger.error(f"Invalid parameter values: {e}")
             return jsonify({'error': 'Invalid parameter values'}), 400
         
-        # Validate coordinate ranges
         if not (0 <= lat <= 90 and -180 <= lon <= 180):
             logger.error(f"Coordinates out of range: lat={lat}, lon={lon}")
             return jsonify({'error': 'Coordinates out of range'}), 400
             
-        # Validate radius
         if not (0.1 <= radius <= 5.0):
             logger.error(f"Radius out of range: {radius}")
             return jsonify({'error': 'Radius must be between 0.1 and 5.0 km'}), 400
         
-        # Check if data is loaded
         if osm_data is None or osm_data.empty:
             logger.warning("OSM data not loaded, attempting to load")
             if not load_data():
                 logger.error("Failed to load OSM data")
                 return jsonify({'error': 'Data not loaded yet'}), 503
         
-        # Log data state
         logger.debug(f"OSM data shape: {osm_data.shape}")
         logger.debug(f"OSM data columns: {osm_data.columns}")
         logger.debug(f"OSM data types: {osm_data.dtypes}")
         
-        # Calculate score
         logger.debug("Calculating score")
         score, details = calculate_accessibility_score(osm_data, lat, lon, radius)
         
-        # Get nearby transport nodes for map display
         nearby_nodes = find_transport_nodes(osm_data, lat, lon, radius)
         
-        # Generate location description using Gemini API
         location_description = generate_location_description(lat, lon, details)
         
-        # Prepare response
         response_data = {
             'score': score,
             'details': details,
@@ -122,34 +110,28 @@ def get_score():
 def get_all_transport_nodes():
     """API endpoint to get all transport nodes for the heatmap"""
     try:
-        # Check if data is loaded
         if osm_data is None or osm_data.empty:
             logger.warning("OSM data not loaded, attempting to load")
             if not load_data():
                 logger.error("Failed to load OSM data")
                 return jsonify({'error': 'Data not loaded yet'}), 503
         
-        # Filter for relevant transport nodes
         transport_nodes = osm_data[
             (osm_data['transport_type'] == 'bus_stop') |
             (osm_data['transport_type'] == 'tram_stop') |
             (osm_data['transport_type'] == 'velo_station')
         ]
         
-        # Log the data types and sample data
         logger.debug(f"Transport nodes data types:\n{transport_nodes.dtypes}")
         logger.debug(f"Sample data:\n{transport_nodes.head()}")
         
-        # Convert to list of dictionaries and ensure all values are JSON serializable
         nodes_list = []
         for _, row in transport_nodes.iterrows():
             try:
-                # Ensure all values are properly converted
                 lat = float(row['lat'])
                 lon = float(row['lon'])
                 transport_type = str(row['transport_type'])
                 
-                # Validate the values
                 if not (0 <= lat <= 90 and -180 <= lon <= 180):
                     logger.warning(f"Invalid coordinates: lat={lat}, lon={lon}")
                     continue
@@ -170,7 +152,6 @@ def get_all_transport_nodes():
         
         logger.debug(f"Processed {len(nodes_list)} valid nodes")
         
-        # Test JSON serialization
         try:
             import json
             test_json = json.dumps({'transport_nodes': nodes_list})
@@ -189,14 +170,12 @@ def get_all_transport_nodes():
 def get_recommendations():
     """API endpoint to get Gemini-generated location recommendations"""
     try:
-        # Check if data is loaded
         if osm_data is None or osm_data.empty:
             logger.warning("OSM data not loaded, attempting to load")
             if not load_data():
                 logger.error("Failed to load OSM data")
                 return jsonify({'error': 'Data not loaded yet'}), 503
         
-        # Define some interesting areas in Antwerp
         recommendations = [
             {
                 'title': 'Central Station Area',
@@ -240,25 +219,21 @@ def get_recommendations():
             }
         ]
         
-        # Calculate actual scores and enrich descriptions
         for rec in recommendations:
             try:
                 score, details = calculate_accessibility_score(osm_data, rec['lat'], rec['lon'], 1.0)
                 rec['score'] = score
                 
-                # Try to get Gemini description
                 try:
                     gemini_description = generate_location_description(rec['lat'], rec['lon'], details)
                     if gemini_description:
                         rec['description'] = gemini_description
                 except Exception as gemini_error:
                     logger.error(f"Error generating Gemini description for {rec['title']}: {gemini_error}")
-                    # Keep the default description if Gemini fails
                     pass
                     
             except Exception as score_error:
                 logger.error(f"Error calculating score for {rec['title']}: {score_error}")
-                # Keep the default score if calculation fails
                 pass
         
         return jsonify({'recommendations': recommendations})
@@ -271,14 +246,12 @@ def get_recommendations():
 def get_isochrone():
     """API endpoint to get areas reachable within a time limit (isochrone)"""
     try:
-        # Get and validate parameters
         lat = request.args.get('lat')
         lon = request.args.get('lon')
-        time = request.args.get('time', '15')  # Time in minutes, default 15 min
+        time = request.args.get('time', '15')
         
         logger.debug(f"Received isochrone request with lat={lat}, lon={lon}, time={time}")
         
-        # Convert parameters to float
         try:
             lat = float(lat)
             lon = float(lon)
@@ -287,13 +260,9 @@ def get_isochrone():
             logger.error(f"Invalid parameter values: {e}")
             return jsonify({'error': 'Invalid parameter values'}), 400
         
-        # Simple circle-based isochrone (no need for complex calculations for now)
-        # Average speeds in Antwerp (km/h): Tram = 20, Bus = 15, Bike = 12, Walk = 5
-        # We'll use a simplified approach with the highest speed (20 km/h for tram)
         max_speed_kmh = 20.0
-        radius_km = (max_speed_kmh * time / 60.0)  # Convert minutes to hours
+        radius_km = (max_speed_kmh * time / 60.0)
         
-        # Create a simple circular polygon as GeoJSON
         num_points = 64
         coordinates = []
         
@@ -302,18 +271,13 @@ def get_isochrone():
             dx = radius_km * math.cos(angle)
             dy = radius_km * math.sin(angle)
             
-            # Convert km to approximate degrees
-            # 111.32 km = 1 degree of latitude
-            # 111.32 * cos(lat) km = 1 degree of longitude at latitude 'lat'
             delta_lat = dy / 111.32
             delta_lon = dx / (111.32 * math.cos(math.radians(lat)))
             
             coordinates.append([lon + delta_lon, lat + delta_lat])
         
-        # Close the polygon
         coordinates.append(coordinates[0])
         
-        # Create GeoJSON feature
         isochrone = {
             "type": "Feature",
             "properties": {
@@ -334,7 +298,6 @@ def get_isochrone():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Load data at startup
     if not load_data():
         logger.warning("Failed to load initial data")
     app.run(host='0.0.0.0', port=5000, debug=True) 

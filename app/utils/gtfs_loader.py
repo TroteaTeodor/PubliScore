@@ -6,7 +6,6 @@ import io
 import logging
 from functools import lru_cache
 
-# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -14,11 +13,10 @@ logger = logging.getLogger(__name__)
 def download_gtfs_data():
     """Download De Lijn GTFS data"""
     try:
-        # De Lijn GTFS feed URL
         url = "https://www.delijn.be/gtfs/gtfs.zip"
         logger.info("Downloading GTFS data from De Lijn...")
         response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for bad status codes
+        response.raise_for_status()
         logger.info("GTFS data downloaded successfully")
         return zipfile.ZipFile(io.BytesIO(response.content))
     except Exception as e:
@@ -35,7 +33,6 @@ def load_gtfs_routes():
         
         logger.info("Loading GTFS files...")
         
-        # Read GTFS files
         routes_df = pd.read_csv(gtfs_zip.open('routes.txt'))
         trips_df = pd.read_csv(gtfs_zip.open('trips.txt'))
         stop_times_df = pd.read_csv(gtfs_zip.open('stop_times.txt'))
@@ -43,7 +40,6 @@ def load_gtfs_routes():
         
         logger.info(f"Loaded {len(routes_df)} routes, {len(trips_df)} trips, {len(stops_df)} stops")
         
-        # Join the data to get complete route information
         route_info = pd.merge(
             pd.merge(
                 routes_df,
@@ -58,10 +54,8 @@ def load_gtfs_routes():
             on='trip_id'
         )
         
-        # Sort by trip_id and stop_sequence to maintain route order
         route_info = route_info.sort_values(['trip_id', 'stop_sequence'])
         
-        # Add route type mapping
         route_type_map = {
             '0': 'tram',
             '1': 'metro',
@@ -76,7 +70,6 @@ def load_gtfs_routes():
         }
         route_info['route_type_name'] = route_info['route_type'].astype(str).map(route_type_map)
         
-        # Add route type for display
         route_info['display_type'] = route_info['route_type_name'].apply(lambda x: 'tram' if x in ['tram', 'cable_tram'] else 'bus')
         
         logger.info(f"Processed {len(route_info)} route segments")
@@ -103,10 +96,8 @@ def get_route_info_for_stop(lat, lon, radius_km=0.1):
         if route_info.empty:
             return []
         
-        # Convert radius to degrees (approximate)
         radius_deg = radius_km / 111.0
         
-        # Find stops within radius
         nearby_stops = route_info[
             (route_info['stop_lat'].between(lat - radius_deg, lat + radius_deg)) &
             (route_info['stop_lon'].between(lon - radius_deg, lon + radius_deg))
@@ -115,7 +106,6 @@ def get_route_info_for_stop(lat, lon, radius_km=0.1):
         if nearby_stops.empty:
             return []
         
-        # Group by route to get unique routes
         routes = []
         for route_id, route_group in nearby_stops.groupby('route_id'):
             route = route_group.iloc[0]

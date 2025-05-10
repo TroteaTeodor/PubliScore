@@ -35,7 +35,6 @@
         max-height: 400px;
     }
     
-    /* Customize scrollbar */
     .recommendations-content::-webkit-scrollbar {
         width: 8px;
     }
@@ -175,7 +174,6 @@
         background: rgba(0,0,0,0.1);
     }
     
-    /* Range slider styles */
     input[type="range"] {
         -webkit-appearance: none;
         width: 100%;
@@ -220,7 +218,6 @@
         color: #2196F3;
     }
     
-    /* Editable value styles */
     .editable-value {
         font-weight: bold;
         color: #2196F3;
@@ -242,7 +239,6 @@
         background-color: rgba(33, 150, 243, 0.1);
     }
     
-    /* Hide number input spinners */
     .editable-value::-webkit-inner-spin-button,
     .editable-value::-webkit-outer-spin-button {
         -webkit-appearance: none;
@@ -253,7 +249,6 @@
         -moz-appearance: textfield;
     }
     
-    /* Heatmap controls */
     .heatmap-controls {
         position: absolute;
         bottom: 20px;
@@ -290,7 +285,6 @@
         margin-bottom: 10px;
     }
     
-    /* Add styles for the suggestions section */
     .suggestions-section {
         margin-top: 20px;
         padding: 20px;
@@ -337,10 +331,9 @@
         margin-top: 10px;
     }
     
-    /* Add styles for the recommendations section */
     .recommendations-section {
         margin-top: 20px;
-        margin-bottom: 30px; /* Add space before footer */
+        margin-bottom: 30px;
         padding: 20px;
         background: #f8f9fa;
         border-radius: 8px;
@@ -421,9 +414,8 @@
         flex-shrink: 0;
     }
     
-    /* Add styles for the footer */
     footer {
-        margin-top: 50px; /* Add space above footer */
+        margin-top: 50px;
         padding: 20px 0;
         background-color: #f8f9fa;
         border-top: 1px solid #dee2e6;
@@ -519,7 +511,6 @@
                 </div>
             </div>
             
-            <!-- Add recommendations section -->
             <div class="recommendations-section">
                 <h3>Recommended Locations</h3>
                 <div class="recommendations-content" id="recommendationsContent">
@@ -542,7 +533,7 @@
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="{{ url_for('static', filename='js/address-autocomplete.js') }}"></script>
 <script>
-    console.log('Main script loaded'); // Debug log
+    console.log('Main script loaded');
     let map;
     let marker;
     let circle;
@@ -556,16 +547,13 @@
     let isochroneLegend = null;
     
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize map
         map = L.map('map').setView([51.2195, 4.4025], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
         
-        // Load initial recommendations
         loadRecommendations();
         
-        // Add legend
         const legend = L.control({position: 'bottomright'});
         legend.onAdd = function(map) {
             const div = L.DomUtil.create('div', 'legend');
@@ -580,12 +568,10 @@
         };
         legend.addTo(map);
         
-        // Handle map clicks
         map.on('click', function(e) {
             updateLocation(e.latlng.lat, e.latlng.lng);
         });
         
-        // Handle form submission
         document.getElementById('searchForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const address = document.getElementById('address').value;
@@ -594,11 +580,9 @@
             }
         });
         
-        // Handle radius slider and input
         const radiusSlider = document.getElementById('radius');
         const radiusValue = document.getElementById('radiusValue');
         
-        // Update input when slider changes
         radiusSlider.addEventListener('input', function() {
             radiusValue.value = this.value;
             if (marker) {
@@ -607,18 +591,15 @@
             }
         });
         
-        // Update slider when input changes
         radiusValue.addEventListener('change', function() {
             let value = parseFloat(this.value);
             
-            // Validate input
             if (isNaN(value)) {
                 value = 1.0;
             }
             value = Math.max(0.5, Math.min(3.0, value));
-            value = Math.round(value * 10) / 10; // Round to 1 decimal place
+            value = Math.round(value * 10) / 10;
             
-            // Update both input and slider
             this.value = value.toFixed(1);
             radiusSlider.value = value;
             
@@ -628,7 +609,6 @@
             }
         });
         
-        // Initialize travel time slider and input
         const travelTimeSlider = document.getElementById('travelTime');
         const travelTimeValue = document.getElementById('travelTimeValue');
         const showIsochroneCheckbox = document.getElementById('showIsochrone');
@@ -639,11 +619,9 @@
             return;
         }
         
-        // Ensure checkbox starts unchecked and controls are hidden
         showIsochroneCheckbox.checked = false;
         travelTimeControls.style.display = 'none';
         
-        // Show/hide travel time controls based on checkbox
         showIsochroneCheckbox.addEventListener('change', function() {
             travelTimeControls.style.display = this.checked ? 'block' : 'none';
             if (this.checked && marker) {
@@ -657,7 +635,6 @@
             }
         });
         
-        // Update input when slider changes
         travelTimeSlider.addEventListener('input', function() {
             travelTimeValue.value = this.value;
             if (showIsochroneCheckbox.checked && marker) {
@@ -666,18 +643,15 @@
             }
         });
         
-        // Update slider when input changes
         travelTimeValue.addEventListener('change', function() {
             let value = parseInt(this.value);
             
-            // Validate input
             if (isNaN(value)) {
                 value = 15;
             }
             value = Math.max(5, Math.min(60, value));
-            value = Math.round(value / 5) * 5; // Round to nearest 5
+            value = Math.round(value / 5) * 5;
             
-            // Update both input and slider
             this.value = value;
             travelTimeSlider.value = value;
             
@@ -689,15 +663,13 @@
     });
     
     function updateLocation(lat, lng) {
-        // Update marker
         if (marker) {
             marker.setLatLng([lat, lng]);
         } else {
             marker = L.marker([lat, lng]).addTo(map);
         }
         
-        // Update circle
-        const radius = parseFloat(document.getElementById('radius').value) * 1000; // Convert to meters
+        const radius = parseFloat(document.getElementById('radius').value) * 1000;
         if (circle) {
             circle.setLatLng([lat, lng]).setRadius(radius);
         } else {
@@ -709,7 +681,6 @@
             }).addTo(map);
         }
         
-        // Check if location or radius has changed
         const currentLocation = `${lat.toFixed(4)}_${lng.toFixed(4)}`;
         const currentRadius = document.getElementById('radius').value;
         
@@ -719,7 +690,6 @@
             calculateScore(lat, lng);
         }
         
-        // Update isochrone if enabled
         const showIsochroneCheckbox = document.getElementById('showIsochrone');
         if (showIsochroneCheckbox && showIsochroneCheckbox.checked) {
             updateIsochrone(lat, lng);
@@ -727,10 +697,8 @@
     }
     
     function searchAddress(address) {
-        // Show loading indicator
         document.querySelector('.loading').classList.add('active');
         
-        // Use Nominatim for geocoding
         fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}, Antwerp, Belgium`)
             .then(response => response.json())
             .then(data => {
@@ -752,7 +720,6 @@
     }
     
     function calculateScore(lat, lng) {
-        // Show loading indicator
         document.querySelector('.loading').classList.add('active');
         
         const radius = document.getElementById('radius').value;
@@ -787,19 +754,15 @@
         const transportDetails = document.getElementById('transportDetails');
         const locationDescription = document.getElementById('locationDescription');
         
-        // Calculate Gemini score
         const details = data.details;
         
-        // Fetch real-time De Lijn data and location info
         fetch(`/api/location_info?lat=${data.lat}&lon=${data.lon}`)
             .then(response => response.json())
             .then(locationData => {
-                // Base scores from our data (max 10 points)
-                const busScore = Math.min(3, details.bus_stops * 0.3);  // Max 3 points
-                const tramScore = Math.min(4, details.tram_stops * 0.4);  // Max 4 points
-                const veloScore = Math.min(2, details.velo_stations * 0.2);  // Max 2 points
+                const busScore = Math.min(3, details.bus_stops * 0.3);
+                const tramScore = Math.min(4, details.tram_stops * 0.4);
+                const veloScore = Math.min(2, details.velo_stations * 0.2);
                 
-                // Distance scores (max 1 point each)
                 const busDistanceScore = details.closest_bus ? 
                     Math.min(1, (2 - Math.min(details.closest_bus, 2)) * 0.5) : 0;
                 const tramDistanceScore = details.closest_tram ? 
@@ -807,35 +770,27 @@
                 const veloDistanceScore = details.closest_velo ? 
                     Math.min(1, (2 - Math.min(details.closest_velo, 2)) * 0.5) : 0;
 
-                // De Lijn specific penalties (max -3 points)
                 const delijnPenalties = calculateDeLijnPenalties(locationData);
                 
-                // Location quality penalties (max -4 points)
                 const locationPenalties = calculateLocationPenalties(locationData);
                 
-                // Calculate total score (max 10 points)
                 const baseScore = busScore + tramScore + veloScore + 
                                 busDistanceScore + tramDistanceScore + veloDistanceScore;
                 
-                // Apply all penalties
                 const missingTransportPenalty = 
                     (details.bus_stops === 0 ? 1 : 0) + 
                     (details.tram_stops === 0 ? 2 : 0) + 
                     (details.velo_stations === 0 ? 1 : 0);
                 
-                // Final Gemini score out of 10
                 const geminiScore = Math.max(0, Math.min(10, 
                     baseScore - missingTransportPenalty - delijnPenalties - locationPenalties
                 ));
 
-                // Calculate average of both scores
                 const averageScore = (data.score + geminiScore) / 2;
                 
-                // Update score display
                 scoreValue.textContent = averageScore.toFixed(1);
                 scoreBar.style.width = `${averageScore * 10}%`;
                 
-                // Update score description based on average score
                 let description = '';
                 if (averageScore >= 8) {
                     description = 'Excellent public transport accessibility';
@@ -850,7 +805,6 @@
                 }
                 scoreDescription.textContent = description;
 
-                // Update location description based on average score
                 let locationDesc = '';
                 if (averageScore >= 8) {
                     locationDesc = `This location offers excellent public transport accessibility with ${details.bus_stops} bus stops, ${details.tram_stops} tram stops, and ${details.velo_stations} velo stations nearby. The area has high-quality De Lijn service and good infrastructure.`;
@@ -867,11 +821,9 @@
             })
             .catch(error => {
                 console.error('Error fetching location data:', error);
-                // If API fails, just use the original score
                 scoreValue.textContent = data.score.toFixed(1);
                 scoreBar.style.width = `${data.score * 10}%`;
                 
-                // Update score description
                 let description = '';
                 if (data.score >= 8) {
                     description = 'Excellent public transport accessibility';
@@ -886,7 +838,6 @@
                 }
                 scoreDescription.textContent = description;
 
-                // Update location description based on original score
                 let locationDesc = '';
                 if (data.score >= 8) {
                     locationDesc = `This location offers excellent public transport accessibility with ${details.bus_stops} bus stops, ${details.tram_stops} tram stops, and ${details.velo_stations} velo stations nearby.`;
@@ -902,7 +853,6 @@
                 locationDescription.textContent = locationDesc;
             });
         
-        // Update transport details
         transportDetails.innerHTML = `
             <div class="transport-list">
                 <div class="transport-item">
@@ -930,15 +880,12 @@
     function calculateDeLijnPenalties(locationData) {
         let penalties = 0;
         
-        // Penalize based on De Lijn service frequency (max -1 point)
         if (locationData.delijn_frequency === 'low') penalties += 1;
         if (locationData.delijn_frequency === 'medium') penalties += 0.5;
         
-        // Penalize based on De Lijn service reliability (max -1 point)
         if (locationData.delijn_reliability < 0.8) penalties += 0.5;
         if (locationData.delijn_reliability < 0.6) penalties += 0.5;
         
-        // Penalize based on De Lijn coverage (max -1 point)
         if (locationData.delijn_coverage === 'poor') penalties += 1;
         if (locationData.delijn_coverage === 'fair') penalties += 0.5;
         
@@ -948,16 +895,13 @@
     function calculateLocationPenalties(locationData) {
         let penalties = 0;
         
-        // Penalize based on neighborhood quality (max -1 point)
         if (locationData.neighborhood_quality === 'poor') penalties += 1;
         if (locationData.neighborhood_quality === 'fair') penalties += 0.5;
         
-        // Penalize based on accessibility features (max -2 points)
         if (!locationData.has_sidewalks) penalties += 0.7;
         if (!locationData.has_bike_lanes) penalties += 0.7;
         if (!locationData.has_crosswalks) penalties += 0.6;
         
-        // Penalize based on safety rating (max -1 point)
         if (locationData.safety_rating < 7) penalties += 0.5;
         if (locationData.safety_rating < 5) penalties += 0.5;
         
@@ -965,7 +909,6 @@
     }
 
     function calculateBasicScore(details) {
-        // Fallback basic scoring if API fails
         const busScore = Math.min(3, details.bus_stops * 0.3);
         const tramScore = Math.min(4, details.tram_stops * 0.4);
         const veloScore = Math.min(2, details.velo_stations * 0.2);
@@ -990,7 +933,6 @@
     }
     
     function displayTransportNodes(transportNodes) {
-        // Clear existing transport markers
         transportMarkers.forEach(marker => {
             if (marker && map.hasLayer(marker)) {
                 map.removeLayer(marker);
@@ -998,33 +940,29 @@
         });
         transportMarkers = [];
         
-        // Filter out non-relevant transport nodes
         const relevantNodes = transportNodes.filter(node => 
             node.transport_type === 'bus_stop' || 
             node.transport_type === 'tram_stop' || 
             node.transport_type === 'velo_station'
         );
         
-        // Add markers
         relevantNodes.forEach(node => {
             let markerColor;
             
-            // Set color based on transport type
             switch(node.transport_type) {
                 case 'bus_stop':
-                    markerColor = '#2196F3'; // Blue
+                    markerColor = '#2196F3';
                     break;
                 case 'tram_stop':
-                    markerColor = '#9C27B0'; // Purple
+                    markerColor = '#9C27B0';
                     break;
                 case 'velo_station':
-                    markerColor = '#FF9800'; // Orange
+                    markerColor = '#FF9800';
                     break;
                 default:
-                    return; // Skip other types
+                    return;
             }
             
-            // Create custom icon with the color
             const icon = L.divIcon({
                 className: 'transport-marker',
                 html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #ffffff; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
@@ -1032,7 +970,6 @@
                 iconAnchor: [8, 8]
             });
             
-            // Create and add marker with enhanced popup
             const transportMarker = L.marker([node.lat, node.lon], {icon: icon})
                 .bindPopup(`
                     <div style="min-width: 150px;">
@@ -1050,13 +987,11 @@
         });
     }
     
-    // Initialize heatmap toggle
     const toggleHeatmap = document.getElementById('toggleHeatmap');
     const intensityControls = document.getElementById('intensityControls');
     const heatmapIntensity = document.getElementById('heatmapIntensity');
     const intensityValue = document.querySelector('.intensity-value');
     
-    // Update intensity value display
     heatmapIntensity.addEventListener('input', function() {
         intensityValue.textContent = this.value;
         if (currentHeatmapData && isHeatmapVisible) {
@@ -1070,10 +1005,8 @@
         intensityControls.style.display = isHeatmapVisible ? 'block' : 'none';
         
         if (isHeatmapVisible) {
-            // Show loading indicator
             document.querySelector('.loading').classList.add('active');
             
-            // Fetch all transport nodes
             fetch('/api/all_transport_nodes')
                 .then(response => {
                     if (!response.ok) {
@@ -1102,7 +1035,6 @@
                 .catch(error => {
                     console.error('Error:', error);
                     alert('Error loading heatmap data: ' + error.message);
-                    // Reset toggle state if there was an error
                     isHeatmapVisible = false;
                     this.textContent = 'Show Heatmap';
                     intensityControls.style.display = 'none';
@@ -1117,20 +1049,16 @@
     
     function updateHeatmap(transportNodes) {
         try {
-            // Clear existing heatmap
             if (heatmapLayer) {
                 map.removeLayer(heatmapLayer);
             }
             
             console.log('Creating heatmap with nodes:', transportNodes.length);
             
-            // Get current intensity value
             const intensity = parseInt(heatmapIntensity.value);
             
-            // Prepare heatmap data
             const heatmapData = transportNodes.map(node => {
                 try {
-                    // Ensure coordinates are valid numbers
                     const lat = parseFloat(node.lat);
                     const lon = parseFloat(node.lon);
                     
@@ -1139,20 +1067,18 @@
                         return null;
                     }
                     
-                    // Validate coordinate ranges
                     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
                         console.warn('Coordinates out of range:', node);
                         return null;
                     }
                     
-                    // Calculate intensity based on transport type and slider value
                     let baseIntensity = 1;
                     switch(node.transport_type) {
                         case 'bus_stop':
                             baseIntensity = 0.8;
                             break;
                         case 'tram_stop':
-                            baseIntensity = 1.2; // Trams are weighted more heavily
+                            baseIntensity = 1.2;
                             break;
                         case 'velo_station':
                             baseIntensity = 0.6;
@@ -1162,7 +1088,6 @@
                             return null;
                     }
                     
-                    // Apply intensity multiplier from slider
                     const adjustedIntensity = baseIntensity * (intensity / 25);
                     
                     return [lat, lon, adjustedIntensity];
@@ -1170,7 +1095,7 @@
                     console.warn('Error processing node:', node, e);
                     return null;
                 }
-            }).filter(point => point !== null); // Remove any invalid points
+            }).filter(point => point !== null);
             
             console.log('Valid heatmap points:', heatmapData.length);
             
@@ -1178,10 +1103,9 @@
                 throw new Error('No valid transport nodes found');
             }
             
-            // Create new heatmap layer with adjusted radius based on intensity
             heatmapLayer = L.heatLayer(heatmapData, {
-                radius: intensity, // Adjust radius based on intensity
-                blur: intensity * 0.6, // Adjust blur based on intensity
+                radius: intensity,
+                blur: intensity * 0.6,
                 maxZoom: 10,
                 max: 1.0,
                 gradient: {
@@ -1192,7 +1116,6 @@
                 }
             });
             
-            // Add to map if heatmap is visible
             if (isHeatmapVisible) {
                 map.addLayer(heatmapLayer);
             }
@@ -1203,7 +1126,6 @@
     }
     
     function getAreaSuggestions(lat, lng) {
-        // Show loading indicator
         document.querySelector('.loading').classList.add('active');
         
         fetch(`/api/score?lat=${lat}&lon=${lng}&radius=${document.getElementById('radius').value}`)
@@ -1237,10 +1159,8 @@
             return;
         }
         
-        // Create suggestions grid
         let html = '<div class="suggestions-grid">';
         
-        // Add main area description
         html += `
             <div class="suggestion-card">
                 <h4>Area Overview</h4>
@@ -1249,7 +1169,6 @@
             </div>
         `;
         
-        // Add transport details
         const details = data.details;
         html += `
             <div class="suggestion-card">
@@ -1262,7 +1181,6 @@
             </div>
         `;
         
-        // Add recommendations based on score
         let recommendation = '';
         if (data.score >= 8) {
             recommendation = 'This is an excellent location for public transport accessibility. Consider this area if you rely heavily on public transportation.';
@@ -1288,7 +1206,6 @@
     }
     
     function loadRecommendations() {
-        // Show loading indicator
         document.querySelector('.loading').classList.add('active');
         
         fetch('/api/recommendations')
@@ -1340,19 +1257,14 @@
     }
     
     function viewRecommendation(lat, lon, address) {
-        // Update map view
         map.setView([lat, lon], 16);
         
-        // Update location
         updateLocation(lat, lon);
         
-        // Update address input
         document.getElementById('address').value = address;
     }
     
-    // Calculate and display isochrone
     function updateIsochrone(lat, lng) {
-        // Get necessary DOM elements
         const travelTimeElement = document.getElementById('travelTime');
         const showIsochroneElement = document.getElementById('showIsochrone');
         const loadingElement = document.querySelector('.loading');
@@ -1362,7 +1274,6 @@
             return;
         }
         
-        // Show loading indicator immediately
         if (loadingElement) {
             loadingElement.classList.add('active');
         }
@@ -1371,34 +1282,28 @@
         console.log(`Calculating isochrone: lat=${lat}, lon=${lng}, time=${travelTime}`);
         
         try {
-            // Remove existing isochrone layers if they exist
             if (isochroneLayer) {
                 map.removeLayer(isochroneLayer);
             }
             
-            // Remove existing legend if it exists
             if (isochroneLegend) {
                 map.removeControl(isochroneLegend);
             }
             
-            // Create a layer group for all transport isochrones
             isochroneLayer = L.layerGroup().addTo(map);
             
-            // Define transport modes and their average speeds in km/h
             const transportModes = [
-                { type: 'tram', speed: 20, color: '#9C27B0' },  // Purple
-                { type: 'bus', speed: 15, color: '#2196F3' },   // Blue
-                { type: 'bike', speed: 12, color: '#4CAF50' },  // Green
-                { type: 'walk', speed: 5, color: '#FF9800' }    // Orange
+                { type: 'tram', speed: 20, color: '#9C27B0' },
+                { type: 'bus', speed: 15, color: '#2196F3' },
+                { type: 'bike', speed: 12, color: '#4CAF50' },
+                { type: 'walk', speed: 5, color: '#FF9800' }
             ];
             
-            // Create isochrones for each transport mode
             const circles = [];
             transportModes.forEach(mode => {
-                const radiusKm = (mode.speed * travelTime / 60.0);  // Convert minutes to hours
-                const radiusMeters = radiusKm * 1000;  // Convert to meters for Leaflet
+                const radiusKm = (mode.speed * travelTime / 60.0);
+                const radiusMeters = radiusKm * 1000;
                 
-                // Create circle for this transport mode
                 const circle = L.circle([lat, lng], {
                     radius: radiusMeters,
                     color: mode.color,
@@ -1406,12 +1311,11 @@
                     opacity: 0.6,
                     fillColor: mode.color,
                     fillOpacity: 0.1,
-                    interactive: false  // Make circles non-interactive
+                    interactive: false
                 }).addTo(isochroneLayer);
                 
                 circles.push(circle);
                 
-                // Add popup with transport-specific information
                 circle.bindPopup(`
                     <div style="text-align: center;">
                         <strong>${mode.type.charAt(0).toUpperCase() + mode.type.slice(1)}</strong><br>
@@ -1422,7 +1326,6 @@
                 `);
             });
             
-            // Add a legend for the isochrones
             isochroneLegend = L.control({ position: 'bottomright' });
             isochroneLegend.onAdd = function(map) {
                 const div = L.DomUtil.create('div', 'legend');
@@ -1441,7 +1344,6 @@
             };
             isochroneLegend.addTo(map);
             
-            // Calculate bounds from all circles
             if (circles.length > 0) {
                 const bounds = L.latLngBounds(circles.map(circle => circle.getBounds()));
                 map.fitBounds(bounds, {
@@ -1455,12 +1357,10 @@
             console.error('Error creating isochrones:', error);
             alert('Error calculating reachable areas: ' + error.message);
             
-            // Reset checkbox
             if (showIsochroneElement) {
                 showIsochroneElement.checked = false;
             }
         } finally {
-            // Hide loading indicator
             if (loadingElement) {
                 loadingElement.classList.remove('active');
             }

@@ -5,21 +5,17 @@ import os
 from dotenv import load_dotenv
 from functools import lru_cache
 
-# Load environment variables
 load_dotenv()
 
-# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Get environment variables
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 GEMINI_API_URL = os.getenv('GEMINI_API_URL')
 
 if not GEMINI_API_KEY or not GEMINI_API_URL:
     raise ValueError("Missing required environment variables. Please check your .env file.")
 
-# Cache for location descriptions
 location_cache = {}
 
 def get_cache_key(lat: float, lon: float, transport_details: dict) -> str:
@@ -40,15 +36,12 @@ def generate_location_description(lat: float, lon: float, transport_details: dic
         Optional[str]: Generated description or None if the API call fails
     """
     try:
-        # Generate cache key
         cache_key = get_cache_key(lat, lon, transport_details)
         
-        # Check if we have a cached description
         if cache_key in location_cache:
             logger.debug("Using cached description for location")
             return location_cache[cache_key]
         
-        # Construct the prompt
         prompt = f"""Generate a short, friendly description of this location in Antwerp based on its public transport accessibility:
         - Bus stops: {transport_details.get('bus_stops', 0)}
         - Tram stops: {transport_details.get('tram_stops', 0)}
@@ -59,7 +52,6 @@ def generate_location_description(lat: float, lon: float, transport_details: dic
         
         Keep the description concise (2-3 sentences) and focus on the transport accessibility."""
 
-        # Prepare the request payload
         payload = {
             "contents": [{
                 "parts": [{"text": prompt}]
@@ -72,7 +64,6 @@ def generate_location_description(lat: float, lon: float, transport_details: dic
             }
         }
 
-        # Make the API request
         headers = {
             'Content-Type': 'application/json'
         }
@@ -82,7 +73,7 @@ def generate_location_description(lat: float, lon: float, transport_details: dic
             f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
             headers=headers,
             json=payload,
-            timeout=10  # Add timeout
+            timeout=10
         )
         
         if response.status_code == 200:
@@ -92,7 +83,6 @@ def generate_location_description(lat: float, lon: float, transport_details: dic
             if 'candidates' in result and len(result['candidates']) > 0:
                 if 'content' in result['candidates'][0] and 'parts' in result['candidates'][0]['content']:
                     description = result['candidates'][0]['content']['parts'][0]['text']
-                    # Cache the description
                     location_cache[cache_key] = description
                     return description
             

@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Autocomplete script loaded'); // Debug log
+    console.log('Autocomplete script loaded');
 
     const searchInput = document.getElementById('address');
     if (!searchInput) {
@@ -7,16 +7,14 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Create autocomplete container
     const autocompleteContainer = document.createElement('div');
     autocompleteContainer.id = 'autocompleteResults';
     autocompleteContainer.className = 'autocomplete-results';
     searchInput.parentNode.appendChild(autocompleteContainer);
 
-    // Add input event listener
     searchInput.addEventListener('input', async function() {
         const query = this.value.trim();
-        console.log('Searching for:', query); // Debug log
+        console.log('Searching for:', query);
 
         if (query.length === 0) {
             autocompleteContainer.style.display = 'none';
@@ -28,9 +26,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=be&city=Antwerp&limit=5`
             );
             const data = await response.json();
-            console.log('Received results:', data); // Debug log
+            console.log('Received results:', data);
 
-            // Clear previous results
             autocompleteContainer.innerHTML = '';
 
             if (data.length === 0) {
@@ -38,7 +35,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Add new results
             data.forEach(result => {
                 const div = document.createElement('div');
                 div.className = 'autocomplete-item';
@@ -59,7 +55,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Close autocomplete when clicking outside
     document.addEventListener('click', function(e) {
         if (!searchInput.contains(e.target) && !autocompleteContainer.contains(e.target)) {
             autocompleteContainer.style.display = 'none';

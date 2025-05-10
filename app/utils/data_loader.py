@@ -7,7 +7,6 @@ import ast
 import logging
 from .gtfs_loader import get_route_info_for_stop
 
-# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -28,34 +27,28 @@ def load_osm_data(dataset_name="ns2agi/antwerp-osm-navigator"):
         dataset = load_dataset(dataset_name)
         logger.info(f"Dataset loaded successfully. Available splits: {list(dataset.keys())}")
         
-        # Get the training split
         train_split = dataset["train"]
         logger.info(f"Training split size: {len(train_split)}")
         
-        # Convert to pandas DataFrame
         df = train_split.to_pandas()
         logger.info(f"DataFrame created with shape: {df.shape}")
         
-        # Parse tags from string to dictionary
         def parse_tags(tags_str):
             try:
                 if isinstance(tags_str, dict):
                     return tags_str
                 if isinstance(tags_str, str):
-                    # Try different parsing methods
                     if tags_str == '{}':
                         return {}
                     try:
-                        # Clean up the string first
-                        tags_str = tags_str.replace("'", '"')  # Replace single quotes with double quotes
+                        tags_str = tags_str.replace("'", '"')
                         return json.loads(tags_str)
                     except:
                         try:
                             return ast.literal_eval(tags_str)
                         except:
                             try:
-                                # Try to parse as a string representation of a dict
-                                tags_str = tags_str.strip('{}')  # Remove curly braces
+                                tags_str = tags_str.strip('{}')
                                 pairs = [pair.split(':') for pair in tags_str.split(',')]
                                 return {k.strip().strip('"\'').strip(): v.strip().strip('"\'').strip() 
                                         for k, v in pairs if ':' in pair}
@@ -67,20 +60,16 @@ def load_osm_data(dataset_name="ns2agi/antwerp-osm-navigator"):
                 logger.warning(f"Error parsing tags: {e}")
                 return {}
         
-        # First filter out empty tags to speed up processing
         df = df[df['tags'] != '{}']
         logger.info(f"Number of nodes with non-empty tags: {len(df)}")
         
-        # Parse tags
         df['tags'] = df['tags'].apply(parse_tags)
         
-        # Create boolean masks for each transport type
         def check_tags(tags):
             if not isinstance(tags, dict):
                 logger.debug(f"Tags is not a dictionary: {type(tags)}")
                 return False
             
-            # Only print non-empty tags for debugging
             if tags and len(tags) > 0:
                 logger.debug(f"Checking tags: {tags}")
             
@@ -99,11 +88,9 @@ def load_osm_data(dataset_name="ns2agi/antwerp-osm-navigator"):
             
             return is_transport
         
-        # Apply the filter
         is_transport = df['tags'].apply(check_tags)
         transport_df = df[is_transport].copy()
         
-        # Add transport type column
         def get_transport_type(tags):
             if not isinstance(tags, dict):
                 return 'unknown'
@@ -118,14 +105,12 @@ def load_osm_data(dataset_name="ns2agi/antwerp-osm-navigator"):
         
         transport_df['transport_type'] = transport_df['tags'].apply(get_transport_type)
         
-        # Add GTFS route information
         logger.info("Adding GTFS route information...")
         transport_df['route_info'] = transport_df.apply(
             lambda row: get_route_info_for_stop(row['lat'], row['lon']) if row['transport_type'] in ['bus_stop', 'tram_stop'] else None,
             axis=1
         )
         
-        # Drop unnecessary columns to save memory
         transport_df = transport_df[['id', 'lat', 'lon', 'transport_type', 'route_info']]
         
         logger.info(f"\nLoaded {len(transport_df)} public transport nodes:")
@@ -151,15 +136,12 @@ def is_transport_node(tags):
         logger.warning(f"Tags is not a dictionary: {type(tags)}")
         return False
         
-    # Check for bus stops
     if tags.get('highway') == 'bus_stop' or tags.get('route') == 'bus':
         return True
         
-    # Check for tram stops
     if tags.get('railway') == 'tram_stop' or tags.get('route') == 'tram':
         return True
         
-    # Check for velo stations
     if tags.get('amenity') == 'bicycle_rental':
         return True
         
