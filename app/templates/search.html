@@ -4,12 +4,56 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" />
 <style>
     #map {
         height: 600px;
         width: 100%;
         border-radius: 5px;
     }
+    
+    .card {
+        margin-bottom: 20px;
+    }
+    
+    .recommendations-section {
+        margin-top: 20px;
+        margin-bottom: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .recommendations-content {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding-right: 10px;
+        max-height: 400px;
+    }
+    
+    /* Customize scrollbar */
+    .recommendations-content::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .recommendations-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .recommendations-content::-webkit-scrollbar-thumb {
+        background: #2196F3;
+        border-radius: 4px;
+    }
+    
+    .recommendations-content::-webkit-scrollbar-thumb:hover {
+        background: #1976D2;
+    }
+    
     .progress-bar {
         transition: width 0.3s ease-in-out;
     }
@@ -21,9 +65,32 @@
         display: none;
         text-align: center;
         padding: 20px;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
     }
+    
     .loading.active {
         display: block;
+    }
+    
+    .loading .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        margin-bottom: 10px;
+    }
+    
+    .loading::after {
+        content: "Loading";
+        display: block;
+        margin-top: 10px;
+        color: #2196F3;
+        font-weight: bold;
     }
     .score-circle {
         width: 150px;
@@ -36,7 +103,7 @@
         font-size: 3rem;
         font-weight: bold;
         color: white;
-        background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        background: linear-gradient(45deg, #2196F3, #9C27B0);
     }
     .transport-item {
         padding: 10px;
@@ -49,19 +116,317 @@
         margin-bottom: 15px;
     }
     .legend {
-        padding: 6px 8px;
-        font: 14px/16px Arial, Helvetica, sans-serif;
+        padding: 4px 6px;
+        font: 12px/14px Arial, Helvetica, sans-serif;
         background: white;
         background: rgba(255,255,255,0.8);
         box-shadow: 0 0 15px rgba(0,0,0,0.2);
-        border-radius: 5px;
+        border-radius: 4px;
+        text-align: left;
+        transition: all 0.3s ease;
+        min-width: 120px;
     }
+    
+    .legend h4 {
+        margin: 0 0 3px 0;
+        text-align: left;
+        cursor: pointer;
+        user-select: none;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+    }
+    
     .legend i {
-        width: 18px;
-        height: 18px;
+        width: 12px;
+        height: 12px;
         float: left;
-        margin-right: 8px;
+        margin-right: 6px;
         opacity: 0.7;
+        border-radius: 50%;
+    }
+    
+    .legend div {
+        text-align: left;
+        margin: 2px 0;
+        display: flex;
+        align-items: center;
+        font-size: 11px;
+    }
+    
+    .legend-content {
+        display: none;
+        margin-top: 3px;
+    }
+    
+    .legend-content.expanded {
+        display: block;
+    }
+    
+    .legend-toggle {
+        cursor: pointer;
+        padding: 3px;
+        border-radius: 3px;
+        background: rgba(0,0,0,0.05);
+        transition: background 0.2s ease;
+    }
+    
+    .legend-toggle:hover {
+        background: rgba(0,0,0,0.1);
+    }
+    
+    /* Range slider styles */
+    input[type="range"] {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 8px;
+        border-radius: 4px;
+        background: #ddd;
+        outline: none;
+        margin: 10px 0;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #2196F3;
+        cursor: pointer;
+        transition: background .15s ease-in-out;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb:hover {
+        background: #1976D2;
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #2196F3;
+        cursor: pointer;
+        transition: background .15s ease-in-out;
+        border: none;
+    }
+    
+    input[type="range"]::-moz-range-thumb:hover {
+        background: #1976D2;
+    }
+    
+    #radiusValue {
+        font-weight: bold;
+        color: #2196F3;
+    }
+    
+    /* Editable value styles */
+    .editable-value {
+        font-weight: bold;
+        color: #2196F3;
+        width: 60px;
+        border: 1px solid #2196F3;
+        border-radius: 4px;
+        padding: 2px 6px;
+        text-align: center;
+        background-color: #fff;
+        transition: all 0.2s;
+    }
+    
+    .editable-value:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+    }
+    
+    .editable-value:hover {
+        background-color: rgba(33, 150, 243, 0.1);
+    }
+    
+    /* Hide number input spinners */
+    .editable-value::-webkit-inner-spin-button,
+    .editable-value::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    
+    .editable-value[type=number] {
+        -moz-appearance: textfield;
+    }
+    
+    /* Heatmap controls */
+    .heatmap-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        width: 200px;
+        text-align: center;
+    }
+    
+    .heatmap-controls label {
+        margin-bottom: 5px;
+        display: block;
+        font-size: 12px;
+    }
+    
+    .heatmap-controls input[type="range"] {
+        width: 100%;
+        margin: 5px 0;
+    }
+    
+    .heatmap-controls .intensity-value {
+        font-size: 12px;
+        color: #666;
+        text-align: center;
+        margin-top: 5px;
+    }
+    
+    .heatmap-controls .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    /* Add styles for the suggestions section */
+    .suggestions-section {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .suggestions-section h3 {
+        color: #2196F3;
+        margin-bottom: 15px;
+    }
+    
+    .suggestions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 15px;
+    }
+    
+    .suggestion-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-left: 4px solid #2196F3;
+    }
+    
+    .suggestion-card h4 {
+        color: #1976D2;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+    }
+    
+    .suggestion-card p {
+        color: #666;
+        font-size: 0.9em;
+        margin-bottom: 0;
+    }
+    
+    .suggestion-card .score {
+        font-weight: bold;
+        color: #2196F3;
+        margin-top: 10px;
+    }
+    
+    /* Add styles for the recommendations section */
+    .recommendations-section {
+        margin-top: 20px;
+        margin-bottom: 30px; /* Add space before footer */
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .recommendations-section h3 {
+        color: #2196F3;
+        margin-bottom: 15px;
+        flex-shrink: 0;
+    }
+    
+    .recommendations-content {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding-right: 10px;
+        max-height: 400px;
+    }
+    
+    .recommendation-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border-left: 4px solid #2196F3;
+        height: 180px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .recommendation-card:last-child {
+        margin-bottom: 0;
+    }
+    
+    .recommendation-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .recommendation-card h4 {
+        color: #1976D2;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+        flex-shrink: 0;
+    }
+    
+    .recommendation-card p {
+        color: #666;
+        font-size: 0.9em;
+        margin-bottom: 10px;
+        flex-grow: 1;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+    
+    .recommendation-card .score {
+        font-weight: bold;
+        color: #2196F3;
+        display: inline-block;
+        padding: 4px 8px;
+        background: rgba(33, 150, 243, 0.1);
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+    
+    .recommendation-card .address {
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 5px;
+        flex-shrink: 0;
+    }
+    
+    /* Add styles for the footer */
+    footer {
+        margin-top: 50px; /* Add space above footer */
+        padding: 20px 0;
+        background-color: #f8f9fa;
+        border-top: 1px solid #dee2e6;
     }
 </style>
 {% endblock %}
@@ -79,13 +444,24 @@
                             <input type="text" class="form-control" id="address" placeholder="Enter an address in Antwerp">
                         </div>
                         <div class="mb-3">
-                            <label for="radius" class="form-label">Search Radius</label>
-                            <select class="form-select" id="radius">
-                                <option value="0.5">500 meters</option>
-                                <option value="1.0" selected>1 kilometer</option>
-                                <option value="2.0">2 kilometers</option>
-                                <option value="3.0">3 kilometers</option>
-                            </select>
+                            <label for="radius" class="form-label">Search Radius: 
+                                <input type="number" id="radiusValue" class="form-control" style="width: 80px; display: inline-block;" value="1.0" min="0.5" max="3.0" step="0.1"> km
+                            </label>
+                            <input type="range" class="form-range" id="radius" min="0.5" max="3.0" step="0.1" value="1.0">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="showIsochrone" checked="false">
+                                <label class="form-check-label" for="showIsochrone">
+                                    Show reachable areas within time limit
+                                </label>
+                            </div>
+                            <div id="travelTimeControls" style="display: none;">
+                                <label for="travelTime" class="form-label">Travel Time Limit: 
+                                    <input type="number" id="travelTimeValue" class="form-control" style="width: 80px; display: inline-block;" value="15" min="5" max="60" step="5"> min
+                                </label>
+                                <input type="range" class="form-range" id="travelTime" min="5" max="60" step="5" value="15">
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Search</button>
                     </form>
@@ -107,6 +483,15 @@
                 </div>
             </div>
             
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Location Description</h5>
+                    <div id="locationDescription" class="text-muted">
+                        Select a location to see its description
+                    </div>
+                </div>
+            </div>
+            
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">Transport Details</h5>
@@ -121,6 +506,22 @@
             <div class="card">
                 <div class="card-body">
                     <div id="map"></div>
+                    <div class="heatmap-controls">
+                        <button id="toggleHeatmap" class="btn btn-primary">Show Heatmap</button>
+                        <div id="intensityControls" style="display: none;">
+                            <label for="heatmapIntensity">Heatmap Intensity</label>
+                            <input type="range" class="form-range" id="heatmapIntensity" min="1" max="50" value="25">
+                            <div class="intensity-value">25</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add recommendations section -->
+            <div class="recommendations-section">
+                <h3>Recommended Locations</h3>
+                <div class="recommendations-content" id="recommendationsContent">
+                    <p class="text-muted">Loading recommendations...</p>
                 </div>
             </div>
         </div>
@@ -136,11 +537,19 @@
 
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
     let map;
     let marker;
     let circle;
-    let transportMarkers = []; // Array to store transport markers
+    let transportMarkers = [];
+    let lastLocation = null;
+    let lastRadius = null;
+    let heatmapLayer = null;
+    let isHeatmapVisible = false;
+    let currentHeatmapData = null;
+    let isochroneLayer = null;
+    let isochroneLegend = null;
     
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize map
@@ -149,15 +558,19 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
         
+        // Load initial recommendations
+        loadRecommendations();
+        
         // Add legend
         const legend = L.control({position: 'bottomright'});
         legend.onAdd = function(map) {
             const div = L.DomUtil.create('div', 'legend');
             div.innerHTML = `
                 <h4>Transport Types</h4>
-                <div><i style="background: #ff6b6b"></i> Bus Stop</div>
-                <div><i style="background: #4ecdc4"></i> Tram Stop</div>
-                <div><i style="background: #45b7d1"></i> Velo Station</div>
+                <div><i style="background: #2196F3"></i> Bus Stop</div>
+                <div><i style="background: #9C27B0"></i> Tram Stop</div>
+                <div><i style="background: #FF9800"></i> Velo Station</div>
+                <div><i style="background: linear-gradient(to right, #ff0000, #ffff00, #00ff00)"></i> Transport Density</div>
             `;
             return div;
         };
@@ -177,11 +590,96 @@
             }
         });
         
-        // Handle radius change
-        document.getElementById('radius').addEventListener('change', function() {
+        // Handle radius slider and input
+        const radiusSlider = document.getElementById('radius');
+        const radiusValue = document.getElementById('radiusValue');
+        
+        // Update input when slider changes
+        radiusSlider.addEventListener('input', function() {
+            radiusValue.value = this.value;
             if (marker) {
                 const latlng = marker.getLatLng();
                 updateLocation(latlng.lat, latlng.lng);
+            }
+        });
+        
+        // Update slider when input changes
+        radiusValue.addEventListener('change', function() {
+            let value = parseFloat(this.value);
+            
+            // Validate input
+            if (isNaN(value)) {
+                value = 1.0;
+            }
+            value = Math.max(0.5, Math.min(3.0, value));
+            value = Math.round(value * 10) / 10; // Round to 1 decimal place
+            
+            // Update both input and slider
+            this.value = value.toFixed(1);
+            radiusSlider.value = value;
+            
+            if (marker) {
+                const latlng = marker.getLatLng();
+                updateLocation(latlng.lat, latlng.lng);
+            }
+        });
+        
+        // Initialize travel time slider and input
+        const travelTimeSlider = document.getElementById('travelTime');
+        const travelTimeValue = document.getElementById('travelTimeValue');
+        const showIsochroneCheckbox = document.getElementById('showIsochrone');
+        const travelTimeControls = document.getElementById('travelTimeControls');
+        
+        if (!travelTimeSlider || !travelTimeValue || !showIsochroneCheckbox || !travelTimeControls) {
+            console.error("Travel time controls not found in DOM");
+            return;
+        }
+        
+        // Ensure checkbox starts unchecked and controls are hidden
+        showIsochroneCheckbox.checked = false;
+        travelTimeControls.style.display = 'none';
+        
+        // Show/hide travel time controls based on checkbox
+        showIsochroneCheckbox.addEventListener('change', function() {
+            travelTimeControls.style.display = this.checked ? 'block' : 'none';
+            if (this.checked && marker) {
+                const latlng = marker.getLatLng();
+                updateIsochrone(latlng.lat, latlng.lng);
+            } else if (isochroneLayer) {
+                map.removeLayer(isochroneLayer);
+                if (isochroneLegend) {
+                    map.removeControl(isochroneLegend);
+                }
+            }
+        });
+        
+        // Update input when slider changes
+        travelTimeSlider.addEventListener('input', function() {
+            travelTimeValue.value = this.value;
+            if (showIsochroneCheckbox.checked && marker) {
+                const latlng = marker.getLatLng();
+                updateIsochrone(latlng.lat, latlng.lng);
+            }
+        });
+        
+        // Update slider when input changes
+        travelTimeValue.addEventListener('change', function() {
+            let value = parseInt(this.value);
+            
+            // Validate input
+            if (isNaN(value)) {
+                value = 15;
+            }
+            value = Math.max(5, Math.min(60, value));
+            value = Math.round(value / 5) * 5; // Round to nearest 5
+            
+            // Update both input and slider
+            this.value = value;
+            travelTimeSlider.value = value;
+            
+            if (showIsochroneCheckbox.checked && marker) {
+                const latlng = marker.getLatLng();
+                updateIsochrone(latlng.lat, latlng.lng);
             }
         });
     });
@@ -207,8 +705,21 @@
             }).addTo(map);
         }
         
-        // Calculate score
-        calculateScore(lat, lng);
+        // Check if location or radius has changed
+        const currentLocation = `${lat.toFixed(4)}_${lng.toFixed(4)}`;
+        const currentRadius = document.getElementById('radius').value;
+        
+        if (currentLocation !== lastLocation || currentRadius !== lastRadius) {
+            lastLocation = currentLocation;
+            lastRadius = currentRadius;
+            calculateScore(lat, lng);
+        }
+        
+        // Update isochrone if enabled
+        const showIsochroneCheckbox = document.getElementById('showIsochrone');
+        if (showIsochroneCheckbox && showIsochroneCheckbox.checked) {
+            updateIsochrone(lat, lng);
+        }
     }
     
     function searchAddress(address) {
@@ -254,6 +765,7 @@
                     throw new Error(data.error);
                 }
                 updateScoreDisplay(data);
+                displayTransportNodes(data.transport_nodes);
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -265,110 +777,539 @@
     }
     
     function updateScoreDisplay(data) {
-        try {
-            const score = data.score;
-            const details = data.details;
-            const transportNodes = data.transport_nodes || [];
-            
-            // Update score display
-            document.getElementById('scoreValue').textContent = score.toFixed(1);
-            document.getElementById('scoreBar').style.width = `${score * 10}%`;
-            
-            // Update score description
-            let description = '';
-            if (score === 0) {
-                description = 'No public transport available in this area';
-            } else if (score >= 8) {
-                description = 'Excellent public transport accessibility';
-            } else if (score >= 6) {
-                description = 'Good public transport accessibility';
-            } else if (score >= 4) {
-                description = 'Moderate public transport accessibility';
-            } else if (score >= 2) {
-                description = 'Limited public transport accessibility';
-            } else {
-                description = 'Poor public transport accessibility';
+        const scoreValue = document.getElementById('scoreValue');
+        const scoreBar = document.getElementById('scoreBar');
+        const scoreDescription = document.getElementById('scoreDescription');
+        const transportDetails = document.getElementById('transportDetails');
+        const locationDescription = document.getElementById('locationDescription');
+        
+        // Update score display
+        scoreValue.textContent = data.score.toFixed(1);
+        scoreBar.style.width = `${data.score * 10}%`;
+        
+        // Update score description
+        let description = '';
+        if (data.score >= 8) {
+            description = 'Excellent public transport accessibility';
+        } else if (data.score >= 6) {
+            description = 'Good public transport accessibility';
+        } else if (data.score >= 4) {
+            description = 'Moderate public transport accessibility';
+        } else if (data.score >= 2) {
+            description = 'Limited public transport accessibility';
+        } else {
+            description = 'Poor public transport accessibility';
+        }
+        scoreDescription.textContent = description;
+        
+        // Update location description
+        if (data.location_description) {
+            locationDescription.textContent = data.location_description;
+        } else {
+            locationDescription.textContent = 'No description available for this location';
+        }
+        
+        // Update transport details
+        const details = data.details;
+        transportDetails.innerHTML = `
+            <div class="transport-list">
+                <div class="transport-item">
+                    <strong>Bus Stops:</strong> ${details.bus_stops}
+                    ${details.closest_bus !== null && details.closest_bus !== undefined ? 
+                        `<br>Closest: ${parseFloat(details.closest_bus).toFixed(2)} km` : 
+                        '<br>No bus stops in range'}
+                </div>
+                <div class="transport-item">
+                    <strong>Tram Stops:</strong> ${details.tram_stops}
+                    ${details.closest_tram !== null && details.closest_tram !== undefined ? 
+                        `<br>Closest: ${parseFloat(details.closest_tram).toFixed(2)} km` : 
+                        '<br>No tram stops in range'}
+                </div>
+                <div class="transport-item">
+                    <strong>Velo Stations:</strong> ${details.velo_stations}
+                    ${details.closest_velo !== null && details.closest_velo !== undefined ? 
+                        `<br>Closest: ${parseFloat(details.closest_velo).toFixed(2)} km` : 
+                        '<br>No velo stations in range'}
+                </div>
+            </div>
+        `;
+    }
+    
+    function displayTransportNodes(transportNodes) {
+        // Clear existing transport markers
+        transportMarkers.forEach(marker => {
+            if (marker && map.hasLayer(marker)) {
+                map.removeLayer(marker);
             }
-            document.getElementById('scoreDescription').textContent = description;
+        });
+        transportMarkers = [];
+        
+        // Filter out non-relevant transport nodes
+        const relevantNodes = transportNodes.filter(node => 
+            node.transport_type === 'bus_stop' || 
+            node.transport_type === 'tram_stop' || 
+            node.transport_type === 'velo_station'
+        );
+        
+        // Add markers
+        relevantNodes.forEach(node => {
+            let markerColor;
             
-            // Update transport details
-            const transportDetails = document.getElementById('transportDetails');
-            transportDetails.innerHTML = `
-                <div class="transport-list">
-                    <div class="transport-item">
-                        <strong>Bus Stops:</strong> ${details.bus_stops}
-                        ${details.closest_bus !== null && details.closest_bus !== undefined ? 
-                            `<br>Closest: ${parseFloat(details.closest_bus).toFixed(2)} km` : 
-                            '<br>No bus stops in range'}
+            // Set color based on transport type
+            switch(node.transport_type) {
+                case 'bus_stop':
+                    markerColor = '#2196F3'; // Blue
+                    break;
+                case 'tram_stop':
+                    markerColor = '#9C27B0'; // Purple
+                    break;
+                case 'velo_station':
+                    markerColor = '#FF9800'; // Orange
+                    break;
+                default:
+                    return; // Skip other types
+            }
+            
+            // Create custom icon with the color
+            const icon = L.divIcon({
+                className: 'transport-marker',
+                html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #ffffff; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+            
+            // Create and add marker with enhanced popup
+            const transportMarker = L.marker([node.lat, node.lon], {icon: icon})
+                .bindPopup(`
+                    <div style="min-width: 150px;">
+                        <b style="color: ${markerColor};">${node.transport_type.replace('_', ' ').toUpperCase()}</b><br>
+                        Distance: ${parseFloat(node.distance).toFixed(2)} km<br>
+                        ID: ${node.id}
                     </div>
-                    <div class="transport-item">
-                        <strong>Tram Stops:</strong> ${details.tram_stops}
-                        ${details.closest_tram !== null && details.closest_tram !== undefined ? 
-                            `<br>Closest: ${parseFloat(details.closest_tram).toFixed(2)} km` : 
-                            '<br>No tram stops in range'}
-                    </div>
-                    <div class="transport-item">
-                        <strong>Velo Stations:</strong> ${details.velo_stations}
-                        ${details.closest_velo !== null && details.closest_velo !== undefined ? 
-                            `<br>Closest: ${parseFloat(details.closest_velo).toFixed(2)} km` : 
-                            '<br>No velo stations in range'}
+                `, {
+                    maxWidth: 200,
+                    className: 'custom-popup'
+                });
+            
+            transportMarker.addTo(map);
+            transportMarkers.push(transportMarker);
+        });
+    }
+    
+    // Initialize heatmap toggle
+    const toggleHeatmap = document.getElementById('toggleHeatmap');
+    const intensityControls = document.getElementById('intensityControls');
+    const heatmapIntensity = document.getElementById('heatmapIntensity');
+    const intensityValue = document.querySelector('.intensity-value');
+    
+    // Update intensity value display
+    heatmapIntensity.addEventListener('input', function() {
+        intensityValue.textContent = this.value;
+        if (currentHeatmapData && isHeatmapVisible) {
+            updateHeatmap(currentHeatmapData);
+        }
+    });
+    
+    toggleHeatmap.addEventListener('click', function() {
+        isHeatmapVisible = !isHeatmapVisible;
+        this.textContent = isHeatmapVisible ? 'Hide Heatmap' : 'Show Heatmap';
+        intensityControls.style.display = isHeatmapVisible ? 'block' : 'none';
+        
+        if (isHeatmapVisible) {
+            // Show loading indicator
+            document.querySelector('.loading').classList.add('active');
+            
+            // Fetch all transport nodes
+            fetch('/api/all_transport_nodes')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text().then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            console.error('Raw response:', text);
+                            throw new Error(`JSON parse error: ${e.message}`);
+                        }
+                    });
+                })
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    if (!data.transport_nodes || !Array.isArray(data.transport_nodes)) {
+                        throw new Error('Invalid data format received from server');
+                    }
+                    console.log('Received nodes:', data.transport_nodes.length);
+                    currentHeatmapData = data.transport_nodes;
+                    updateHeatmap(currentHeatmapData);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading heatmap data: ' + error.message);
+                    // Reset toggle state if there was an error
+                    isHeatmapVisible = false;
+                    this.textContent = 'Show Heatmap';
+                    intensityControls.style.display = 'none';
+                })
+                .finally(() => {
+                    document.querySelector('.loading').classList.remove('active');
+                });
+        } else if (heatmapLayer) {
+            map.removeLayer(heatmapLayer);
+        }
+    });
+    
+    function updateHeatmap(transportNodes) {
+        try {
+            // Clear existing heatmap
+            if (heatmapLayer) {
+                map.removeLayer(heatmapLayer);
+            }
+            
+            console.log('Creating heatmap with nodes:', transportNodes.length);
+            
+            // Get current intensity value
+            const intensity = parseInt(heatmapIntensity.value);
+            
+            // Prepare heatmap data
+            const heatmapData = transportNodes.map(node => {
+                try {
+                    // Ensure coordinates are valid numbers
+                    const lat = parseFloat(node.lat);
+                    const lon = parseFloat(node.lon);
+                    
+                    if (isNaN(lat) || isNaN(lon)) {
+                        console.warn('Invalid coordinates:', node);
+                        return null;
+                    }
+                    
+                    // Validate coordinate ranges
+                    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                        console.warn('Coordinates out of range:', node);
+                        return null;
+                    }
+                    
+                    // Calculate intensity based on transport type and slider value
+                    let baseIntensity = 1;
+                    switch(node.transport_type) {
+                        case 'bus_stop':
+                            baseIntensity = 0.8;
+                            break;
+                        case 'tram_stop':
+                            baseIntensity = 1.2; // Trams are weighted more heavily
+                            break;
+                        case 'velo_station':
+                            baseIntensity = 0.6;
+                            break;
+                        default:
+                            console.warn('Unknown transport type:', node.transport_type);
+                            return null;
+                    }
+                    
+                    // Apply intensity multiplier from slider
+                    const adjustedIntensity = baseIntensity * (intensity / 25);
+                    
+                    return [lat, lon, adjustedIntensity];
+                } catch (e) {
+                    console.warn('Error processing node:', node, e);
+                    return null;
+                }
+            }).filter(point => point !== null); // Remove any invalid points
+            
+            console.log('Valid heatmap points:', heatmapData.length);
+            
+            if (heatmapData.length === 0) {
+                throw new Error('No valid transport nodes found');
+            }
+            
+            // Create new heatmap layer with adjusted radius based on intensity
+            heatmapLayer = L.heatLayer(heatmapData, {
+                radius: intensity, // Adjust radius based on intensity
+                blur: intensity * 0.6, // Adjust blur based on intensity
+                maxZoom: 10,
+                max: 1.0,
+                gradient: {
+                    0.4: 'blue',
+                    0.6: 'lime',
+                    0.8: 'yellow',
+                    1.0: 'red'
+                }
+            });
+            
+            // Add to map if heatmap is visible
+            if (isHeatmapVisible) {
+                map.addLayer(heatmapLayer);
+            }
+        } catch (error) {
+            console.error('Error creating heatmap:', error);
+            alert('Error creating heatmap: ' + error.message);
+        }
+    }
+    
+    function getAreaSuggestions(lat, lng) {
+        // Show loading indicator
+        document.querySelector('.loading').classList.add('active');
+        
+        fetch(`/api/score?lat=${lat}&lon=${lng}&radius=${document.getElementById('radius').value}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                updateSuggestions(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('suggestionsContent').innerHTML = 
+                    `<p class="text-danger">Error loading suggestions: ${error.message}</p>`;
+            })
+            .finally(() => {
+                document.querySelector('.loading').classList.remove('active');
+            });
+    }
+    
+    function updateSuggestions(data) {
+        const suggestionsContent = document.getElementById('suggestionsContent');
+        
+        if (!data.location_description) {
+            suggestionsContent.innerHTML = '<p class="text-muted">No suggestions available for this area</p>';
+            return;
+        }
+        
+        // Create suggestions grid
+        let html = '<div class="suggestions-grid">';
+        
+        // Add main area description
+        html += `
+            <div class="suggestion-card">
+                <h4>Area Overview</h4>
+                <p>${data.location_description}</p>
+                <div class="score">Accessibility Score: ${data.score.toFixed(1)}/10</div>
+            </div>
+        `;
+        
+        // Add transport details
+        const details = data.details;
+        html += `
+            <div class="suggestion-card">
+                <h4>Transport Options</h4>
+                <p>
+                    <strong>Bus Stops:</strong> ${details.bus_stops}<br>
+                    <strong>Tram Stops:</strong> ${details.tram_stops}<br>
+                    <strong>Velo Stations:</strong> ${details.velo_stations}
+                </p>
+            </div>
+        `;
+        
+        // Add recommendations based on score
+        let recommendation = '';
+        if (data.score >= 8) {
+            recommendation = 'This is an excellent location for public transport accessibility. Consider this area if you rely heavily on public transportation.';
+        } else if (data.score >= 6) {
+            recommendation = 'This area offers good public transport options. It\'s a solid choice for regular public transport users.';
+        } else if (data.score >= 4) {
+            recommendation = 'The public transport coverage is moderate. Consider this area if you have alternative transport options available.';
+        } else if (data.score >= 2) {
+            recommendation = 'Public transport options are limited in this area. You might want to consider locations with better connectivity.';
+        } else {
+            recommendation = 'This area has poor public transport accessibility. Consider looking at other locations with better transport options.';
+        }
+        
+        html += `
+            <div class="suggestion-card">
+                <h4>Recommendation</h4>
+                <p>${recommendation}</p>
+            </div>
+        `;
+        
+        html += '</div>';
+        suggestionsContent.innerHTML = html;
+    }
+    
+    function loadRecommendations() {
+        // Show loading indicator
+        document.querySelector('.loading').classList.add('active');
+        
+        fetch('/api/recommendations')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                updateRecommendations(data.recommendations);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('recommendationsContent').innerHTML = 
+                    `<p class="text-danger">Error loading recommendations: ${error.message}</p>`;
+            })
+            .finally(() => {
+                document.querySelector('.loading').classList.remove('active');
+            });
+    }
+    
+    function updateRecommendations(recommendations) {
+        const recommendationsContent = document.getElementById('recommendationsContent');
+        
+        if (!recommendations || recommendations.length === 0) {
+            recommendationsContent.innerHTML = '<p class="text-muted">No recommendations available</p>';
+            return;
+        }
+        
+        let html = '';
+        recommendations.forEach(rec => {
+            html += `
+                <div class="recommendation-card" onclick="viewRecommendation(${rec.lat}, ${rec.lon}, '${rec.address}')">
+                    <h4>${rec.title}</h4>
+                    <p>${rec.description}</p>
+                    <div class="score">Accessibility Score: ${rec.score.toFixed(1)}/10</div>
+                    <div class="address">
+                        <i class="fas fa-map-marker-alt"></i> ${rec.address}
                     </div>
                 </div>
             `;
+        });
+        
+        recommendationsContent.innerHTML = html;
+    }
+    
+    function viewRecommendation(lat, lon, address) {
+        // Update map view
+        map.setView([lat, lon], 16);
+        
+        // Update location
+        updateLocation(lat, lon);
+        
+        // Update address input
+        document.getElementById('address').value = address;
+    }
+    
+    // Calculate and display isochrone
+    function updateIsochrone(lat, lng) {
+        // Get necessary DOM elements
+        const travelTimeElement = document.getElementById('travelTime');
+        const showIsochroneElement = document.getElementById('showIsochrone');
+        
+        if (!travelTimeElement || !showIsochroneElement) {
+            console.error("Travel time controls not found");
+            return;
+        }
+        
+        // Show loading indicator
+        const loadingElement = document.querySelector('.loading');
+        if (loadingElement) {
+            loadingElement.classList.add('active');
+        }
+        
+        const travelTime = parseInt(travelTimeElement.value);
+        console.log(`Calculating isochrone: lat=${lat}, lon=${lng}, time=${travelTime}`);
+        
+        try {
+            // Remove existing isochrone layers if they exist
+            if (isochroneLayer) {
+                map.removeLayer(isochroneLayer);
+            }
             
-            // Display transport nodes on the map
-            // First, clear existing transport markers
-            transportMarkers.forEach(marker => {
-                if (marker && map.hasLayer(marker)) {
-                    map.removeLayer(marker);
-                }
+            // Remove existing legend if it exists
+            if (isochroneLegend) {
+                map.removeControl(isochroneLegend);
+            }
+            
+            // Create a layer group for all transport isochrones
+            isochroneLayer = L.layerGroup().addTo(map);
+            
+            // Define transport modes and their average speeds in km/h
+            const transportModes = [
+                { type: 'tram', speed: 20, color: '#9C27B0' },  // Purple
+                { type: 'bus', speed: 15, color: '#2196F3' },   // Blue
+                { type: 'bike', speed: 12, color: '#4CAF50' },  // Green
+                { type: 'walk', speed: 5, color: '#FF9800' }    // Orange
+            ];
+            
+            // Create isochrones for each transport mode
+            const circles = [];
+            transportModes.forEach(mode => {
+                const radiusKm = (mode.speed * travelTime / 60.0);  // Convert minutes to hours
+                const radiusMeters = radiusKm * 1000;  // Convert to meters for Leaflet
+                
+                // Create circle for this transport mode
+                const circle = L.circle([lat, lng], {
+                    radius: radiusMeters,
+                    color: mode.color,
+                    weight: 2,
+                    opacity: 0.6,
+                    fillColor: mode.color,
+                    fillOpacity: 0.1,
+                    interactive: false  // Make circles non-interactive
+                }).addTo(isochroneLayer);
+                
+                circles.push(circle);
+                
+                // Add popup with transport-specific information
+                circle.bindPopup(`
+                    <div style="text-align: center;">
+                        <strong>${mode.type.charAt(0).toUpperCase() + mode.type.slice(1)}</strong><br>
+                        Travel Time: ${travelTime} minutes<br>
+                        Maximum distance: ${radiusKm.toFixed(2)} km<br>
+                        Average speed: ${mode.speed} km/h
+                    </div>
+                `);
             });
-            transportMarkers = [];
             
-            // Add new markers for each transport node
-            transportNodes.forEach(node => {
-                try {
-                    let markerColor = '#777777'; // Default color
-                    
-                    // Set color based on transport type
-                    if (node.type === 'bus_stop') {
-                        markerColor = '#ff6b6b'; // Red
-                    } else if (node.type === 'tram_stop') {
-                        markerColor = '#4ecdc4'; // Teal
-                    } else if (node.type === 'velo_station') {
-                        markerColor = '#45b7d1'; // Blue
-                    }
-                    
-                    // Create custom icon with the color
-                    const icon = L.divIcon({
-                        className: 'transport-marker',
-                        html: `<div style="background-color: ${markerColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #ffffff; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
-                        iconSize: [16, 16],
-                        iconAnchor: [8, 8]
-                    });
-                    
-                    // Create and add marker with enhanced popup
-                    const transportMarker = L.marker([node.lat, node.lon], {icon: icon})
-                        .bindPopup(`
-                            <div style="min-width: 150px;">
-                                <b style="color: ${markerColor};">${node.type.replace('_', ' ').toUpperCase()}</b><br>
-                                Distance: ${parseFloat(node.distance).toFixed(2)} km<br>
-                                ID: ${node.id}
+            // Add a legend for the isochrones
+            isochroneLegend = L.control({ position: 'bottomright' });
+            isochroneLegend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'legend');
+                div.innerHTML = `
+                    <div class="legend-content expanded">
+                        ${transportModes.map(mode => `
+                            <div style="display: block; margin: 4px 0;">
+                                <i style="background: ${mode.color}"></i>
+                                <span>${mode.type.charAt(0).toUpperCase() + mode.type.slice(1)} (${mode.speed} km/h)</span>
                             </div>
-                        `, {
-                            maxWidth: 200,
-                            className: 'custom-popup'
-                        });
-                    
-                    transportMarker.addTo(map);
-                    transportMarkers.push(transportMarker);
-                } catch (markerError) {
-                    console.error('Error creating marker:', markerError);
-                }
-            });
+                        `).join('')}
+                    </div>
+                `;
+                
+                return div;
+            };
+            isochroneLegend.addTo(map);
+            
+            // Calculate bounds from all circles
+            if (circles.length > 0) {
+                const bounds = L.latLngBounds(circles.map(circle => circle.getBounds()));
+                map.fitBounds(bounds, {
+                    padding: [50, 50],
+                    maxZoom: 15
+                });
+            }
+            
+            console.log(`Created isochrones for ${travelTime} minutes`);
         } catch (error) {
-            console.error('Error updating score display:', error);
-            alert('Error updating display: ' + error.message);
+            console.error('Error creating isochrones:', error);
+            alert('Error calculating reachable areas: ' + error.message);
+            
+            // Reset checkbox
+            if (showIsochroneElement) {
+                showIsochroneElement.checked = false;
+            }
+        } finally {
+            // Hide loading indicator
+            if (loadingElement) {
+                loadingElement.classList.remove('active');
+            }
         }
     }
 </script>

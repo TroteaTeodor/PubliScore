@@ -5,6 +5,7 @@ from functools import lru_cache
 import json
 import ast
 import logging
+from .gtfs_loader import get_route_info_for_stop
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -20,7 +21,7 @@ def load_osm_data(dataset_name="ns2agi/antwerp-osm-navigator"):
         dataset_name (str): The name of the dataset on HuggingFace
         
     Returns:
-        pd.DataFrame: The processed dataset with only public transport nodes
+        pd.DataFrame: The processed dataset with transport nodes and routes
     """
     try:
         logger.info(f"Loading dataset: {dataset_name}")
@@ -34,10 +35,6 @@ def load_osm_data(dataset_name="ns2agi/antwerp-osm-navigator"):
         # Convert to pandas DataFrame
         df = train_split.to_pandas()
         logger.info(f"DataFrame created with shape: {df.shape}")
-        
-        # Filter for nodes only
-        df = df[df['type'] == 'node']
-        logger.info(f"Number of nodes after filtering: {len(df)}")
         
         # Parse tags from string to dictionary
         def parse_tags(tags_str):
@@ -92,7 +89,9 @@ def load_osm_data(dataset_name="ns2agi/antwerp-osm-navigator"):
                 (tags.get('highway') == 'bus_stop') or
                 (tags.get('railway') in ['tram_stop', 'station', 'halt']) or
                 (tags.get('amenity') == 'bicycle_rental') or
-                any('velo' in str(v).lower() for v in tags.values())
+                any('velo' in str(v).lower() for v in tags.values()) or
+                (tags.get('route') in ['bus', 'tram']) or
+                (tags.get('public_transport') == 'stop_position')
             )
             
             if is_transport:
@@ -111,16 +110,23 @@ def load_osm_data(dataset_name="ns2agi/antwerp-osm-navigator"):
             
             if tags.get('amenity') == 'bicycle_rental' or any('velo' in str(v).lower() for v in tags.values()):
                 return 'velo_station'
-            if tags.get('railway') in ['tram_stop', 'station', 'halt']:
+            if tags.get('railway') in ['tram_stop', 'station', 'halt'] or tags.get('route') == 'tram':
                 return 'tram_stop'
-            if tags.get('highway') == 'bus_stop' or 'bus' in str(tags.get('route', '')):
+            if tags.get('highway') == 'bus_stop' or tags.get('route') == 'bus':
                 return 'bus_stop'
             return 'other'
         
         transport_df['transport_type'] = transport_df['tags'].apply(get_transport_type)
         
+        # Add GTFS route information
+        logger.info("Adding GTFS route information...")
+        transport_df['route_info'] = transport_df.apply(
+            lambda row: get_route_info_for_stop(row['lat'], row['lon']) if row['transport_type'] in ['bus_stop', 'tram_stop'] else None,
+            axis=1
+        )
+        
         # Drop unnecessary columns to save memory
-        transport_df = transport_df[['id', 'lat', 'lon', 'transport_type']]
+        transport_df = transport_df[['id', 'lat', 'lon', 'transport_type', 'route_info']]
         
         logger.info(f"\nLoaded {len(transport_df)} public transport nodes:")
         logger.info(transport_df['transport_type'].value_counts())
@@ -146,11 +152,11 @@ def is_transport_node(tags):
         return False
         
     # Check for bus stops
-    if tags.get('highway') == 'bus_stop':
+    if tags.get('highway') == 'bus_stop' or tags.get('route') == 'bus':
         return True
         
     # Check for tram stops
-    if tags.get('railway') == 'tram_stop':
+    if tags.get('railway') == 'tram_stop' or tags.get('route') == 'tram':
         return True
         
     # Check for velo stations
@@ -172,9 +178,9 @@ def classify_transport_type(tags):
     if not isinstance(tags, dict):
         return None
         
-    if tags.get('highway') == 'bus_stop':
+    if tags.get('highway') == 'bus_stop' or tags.get('route') == 'bus':
         return 'bus_stop'
-    elif tags.get('railway') == 'tram_stop':
+    elif tags.get('railway') == 'tram_stop' or tags.get('route') == 'tram':
         return 'tram_stop'
     elif tags.get('amenity') == 'bicycle_rental':
         return 'velo_station'
