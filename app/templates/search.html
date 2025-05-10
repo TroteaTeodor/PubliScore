@@ -65,9 +65,32 @@
         display: none;
         text-align: center;
         padding: 20px;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
     }
+    
     .loading.active {
         display: block;
+    }
+    
+    .loading .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        margin-bottom: 10px;
+    }
+    
+    .loading::after {
+        content: "Loading";
+        display: block;
+        margin-top: 10px;
+        color: #2196F3;
+        font-weight: bold;
     }
     .score-circle {
         width: 150px;
@@ -93,19 +116,63 @@
         margin-bottom: 15px;
     }
     .legend {
-        padding: 6px 8px;
-        font: 14px/16px Arial, Helvetica, sans-serif;
+        padding: 4px 6px;
+        font: 12px/14px Arial, Helvetica, sans-serif;
         background: white;
         background: rgba(255,255,255,0.8);
         box-shadow: 0 0 15px rgba(0,0,0,0.2);
-        border-radius: 5px;
+        border-radius: 4px;
+        text-align: left;
+        transition: all 0.3s ease;
+        min-width: 120px;
     }
+    
+    .legend h4 {
+        margin: 0 0 3px 0;
+        text-align: left;
+        cursor: pointer;
+        user-select: none;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+    }
+    
     .legend i {
-        width: 18px;
-        height: 18px;
+        width: 12px;
+        height: 12px;
         float: left;
-        margin-right: 8px;
+        margin-right: 6px;
         opacity: 0.7;
+        border-radius: 50%;
+    }
+    
+    .legend div {
+        text-align: left;
+        margin: 2px 0;
+        display: flex;
+        align-items: center;
+        font-size: 11px;
+    }
+    
+    .legend-content {
+        display: none;
+        margin-top: 3px;
+    }
+    
+    .legend-content.expanded {
+        display: block;
+    }
+    
+    .legend-toggle {
+        cursor: pointer;
+        padding: 3px;
+        border-radius: 3px;
+        background: rgba(0,0,0,0.05);
+        transition: background 0.2s ease;
+    }
+    
+    .legend-toggle:hover {
+        background: rgba(0,0,0,0.1);
     }
     
     /* Range slider styles */
@@ -382,6 +449,20 @@
                             </label>
                             <input type="range" class="form-range" id="radius" min="0.5" max="3.0" step="0.1" value="1.0">
                         </div>
+                        <div class="mb-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="showIsochrone" checked="false">
+                                <label class="form-check-label" for="showIsochrone">
+                                    Show reachable areas within time limit
+                                </label>
+                            </div>
+                            <div id="travelTimeControls" style="display: none;">
+                                <label for="travelTime" class="form-label">Travel Time Limit: 
+                                    <input type="number" id="travelTimeValue" class="form-control" style="width: 80px; display: inline-block;" value="15" min="5" max="60" step="5"> min
+                                </label>
+                                <input type="range" class="form-range" id="travelTime" min="5" max="60" step="5" value="15">
+                            </div>
+                        </div>
                         <button type="submit" class="btn btn-primary w-100">Search</button>
                     </form>
                 </div>
@@ -467,6 +548,8 @@
     let heatmapLayer = null;
     let isHeatmapVisible = false;
     let currentHeatmapData = null;
+    let isochroneLayer = null;
+    let isochroneLegend = null;
     
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize map
@@ -540,6 +623,65 @@
                 updateLocation(latlng.lat, latlng.lng);
             }
         });
+        
+        // Initialize travel time slider and input
+        const travelTimeSlider = document.getElementById('travelTime');
+        const travelTimeValue = document.getElementById('travelTimeValue');
+        const showIsochroneCheckbox = document.getElementById('showIsochrone');
+        const travelTimeControls = document.getElementById('travelTimeControls');
+        
+        if (!travelTimeSlider || !travelTimeValue || !showIsochroneCheckbox || !travelTimeControls) {
+            console.error("Travel time controls not found in DOM");
+            return;
+        }
+        
+        // Ensure checkbox starts unchecked and controls are hidden
+        showIsochroneCheckbox.checked = false;
+        travelTimeControls.style.display = 'none';
+        
+        // Show/hide travel time controls based on checkbox
+        showIsochroneCheckbox.addEventListener('change', function() {
+            travelTimeControls.style.display = this.checked ? 'block' : 'none';
+            if (this.checked && marker) {
+                const latlng = marker.getLatLng();
+                updateIsochrone(latlng.lat, latlng.lng);
+            } else if (isochroneLayer) {
+                map.removeLayer(isochroneLayer);
+                if (isochroneLegend) {
+                    map.removeControl(isochroneLegend);
+                }
+            }
+        });
+        
+        // Update input when slider changes
+        travelTimeSlider.addEventListener('input', function() {
+            travelTimeValue.value = this.value;
+            if (showIsochroneCheckbox.checked && marker) {
+                const latlng = marker.getLatLng();
+                updateIsochrone(latlng.lat, latlng.lng);
+            }
+        });
+        
+        // Update slider when input changes
+        travelTimeValue.addEventListener('change', function() {
+            let value = parseInt(this.value);
+            
+            // Validate input
+            if (isNaN(value)) {
+                value = 15;
+            }
+            value = Math.max(5, Math.min(60, value));
+            value = Math.round(value / 5) * 5; // Round to nearest 5
+            
+            // Update both input and slider
+            this.value = value;
+            travelTimeSlider.value = value;
+            
+            if (showIsochroneCheckbox.checked && marker) {
+                const latlng = marker.getLatLng();
+                updateIsochrone(latlng.lat, latlng.lng);
+            }
+        });
     });
     
     function updateLocation(lat, lng) {
@@ -571,6 +713,12 @@
             lastLocation = currentLocation;
             lastRadius = currentRadius;
             calculateScore(lat, lng);
+        }
+        
+        // Update isochrone if enabled
+        const showIsochroneCheckbox = document.getElementById('showIsochrone');
+        if (showIsochroneCheckbox && showIsochroneCheckbox.checked) {
+            updateIsochrone(lat, lng);
         }
     }
     
@@ -1046,6 +1194,123 @@
         
         // Update address input
         document.getElementById('address').value = address;
+    }
+    
+    // Calculate and display isochrone
+    function updateIsochrone(lat, lng) {
+        // Get necessary DOM elements
+        const travelTimeElement = document.getElementById('travelTime');
+        const showIsochroneElement = document.getElementById('showIsochrone');
+        
+        if (!travelTimeElement || !showIsochroneElement) {
+            console.error("Travel time controls not found");
+            return;
+        }
+        
+        // Show loading indicator
+        const loadingElement = document.querySelector('.loading');
+        if (loadingElement) {
+            loadingElement.classList.add('active');
+        }
+        
+        const travelTime = parseInt(travelTimeElement.value);
+        console.log(`Calculating isochrone: lat=${lat}, lon=${lng}, time=${travelTime}`);
+        
+        try {
+            // Remove existing isochrone layers if they exist
+            if (isochroneLayer) {
+                map.removeLayer(isochroneLayer);
+            }
+            
+            // Remove existing legend if it exists
+            if (isochroneLegend) {
+                map.removeControl(isochroneLegend);
+            }
+            
+            // Create a layer group for all transport isochrones
+            isochroneLayer = L.layerGroup().addTo(map);
+            
+            // Define transport modes and their average speeds in km/h
+            const transportModes = [
+                { type: 'tram', speed: 20, color: '#9C27B0' },  // Purple
+                { type: 'bus', speed: 15, color: '#2196F3' },   // Blue
+                { type: 'bike', speed: 12, color: '#4CAF50' },  // Green
+                { type: 'walk', speed: 5, color: '#FF9800' }    // Orange
+            ];
+            
+            // Create isochrones for each transport mode
+            const circles = [];
+            transportModes.forEach(mode => {
+                const radiusKm = (mode.speed * travelTime / 60.0);  // Convert minutes to hours
+                const radiusMeters = radiusKm * 1000;  // Convert to meters for Leaflet
+                
+                // Create circle for this transport mode
+                const circle = L.circle([lat, lng], {
+                    radius: radiusMeters,
+                    color: mode.color,
+                    weight: 2,
+                    opacity: 0.6,
+                    fillColor: mode.color,
+                    fillOpacity: 0.1,
+                    interactive: false  // Make circles non-interactive
+                }).addTo(isochroneLayer);
+                
+                circles.push(circle);
+                
+                // Add popup with transport-specific information
+                circle.bindPopup(`
+                    <div style="text-align: center;">
+                        <strong>${mode.type.charAt(0).toUpperCase() + mode.type.slice(1)}</strong><br>
+                        Travel Time: ${travelTime} minutes<br>
+                        Maximum distance: ${radiusKm.toFixed(2)} km<br>
+                        Average speed: ${mode.speed} km/h
+                    </div>
+                `);
+            });
+            
+            // Add a legend for the isochrones
+            isochroneLegend = L.control({ position: 'bottomright' });
+            isochroneLegend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'legend');
+                div.innerHTML = `
+                    <div class="legend-content expanded">
+                        ${transportModes.map(mode => `
+                            <div style="display: block; margin: 4px 0;">
+                                <i style="background: ${mode.color}"></i>
+                                <span>${mode.type.charAt(0).toUpperCase() + mode.type.slice(1)} (${mode.speed} km/h)</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                return div;
+            };
+            isochroneLegend.addTo(map);
+            
+            // Calculate bounds from all circles
+            if (circles.length > 0) {
+                const bounds = L.latLngBounds(circles.map(circle => circle.getBounds()));
+                map.fitBounds(bounds, {
+                    padding: [50, 50],
+                    maxZoom: 15
+                });
+            }
+            
+            console.log(`Created isochrones for ${travelTime} minutes`);
+        } catch (error) {
+            console.error('Error creating isochrones:', error);
+            alert('Error calculating reachable areas: ' + error.message);
+            
+            // Reset checkbox
+            if (showIsochroneElement) {
+                showIsochroneElement.checked = false;
+            }
+        } finally {
+            // Hide loading indicator
+            if (loadingElement) {
+                loadingElement.classList.remove('active');
+            }
+        }
     }
 </script>
 {% endblock %} 

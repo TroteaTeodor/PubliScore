@@ -5,6 +5,10 @@ from app.utils.gemini_utils import generate_location_description
 import os
 import pandas as pd
 import logging
+import requests
+import json
+import math
+from geopy.distance import geodesic
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -246,6 +250,72 @@ def get_recommendations():
         
     except Exception as e:
         logger.error(f"Error in get_recommendations: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/isochrone')
+def get_isochrone():
+    """API endpoint to get areas reachable within a time limit (isochrone)"""
+    try:
+        # Get and validate parameters
+        lat = request.args.get('lat')
+        lon = request.args.get('lon')
+        time = request.args.get('time', '15')  # Time in minutes, default 15 min
+        
+        logger.debug(f"Received isochrone request with lat={lat}, lon={lon}, time={time}")
+        
+        # Convert parameters to float
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            time = int(time)
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid parameter values: {e}")
+            return jsonify({'error': 'Invalid parameter values'}), 400
+        
+        # Simple circle-based isochrone (no need for complex calculations for now)
+        # Average speeds in Antwerp (km/h): Tram = 20, Bus = 15, Bike = 12, Walk = 5
+        # We'll use a simplified approach with the highest speed (20 km/h for tram)
+        max_speed_kmh = 20.0
+        radius_km = (max_speed_kmh * time / 60.0)  # Convert minutes to hours
+        
+        # Create a simple circular polygon as GeoJSON
+        num_points = 64
+        coordinates = []
+        
+        for i in range(num_points):
+            angle = (i / num_points) * (2 * math.pi)
+            dx = radius_km * math.cos(angle)
+            dy = radius_km * math.sin(angle)
+            
+            # Convert km to approximate degrees
+            # 111.32 km = 1 degree of latitude
+            # 111.32 * cos(lat) km = 1 degree of longitude at latitude 'lat'
+            delta_lat = dy / 111.32
+            delta_lon = dx / (111.32 * math.cos(math.radians(lat)))
+            
+            coordinates.append([lon + delta_lon, lat + delta_lat])
+        
+        # Close the polygon
+        coordinates.append(coordinates[0])
+        
+        # Create GeoJSON feature
+        isochrone = {
+            "type": "Feature",
+            "properties": {
+                "time_minutes": time,
+                "radius_km": radius_km,
+                "transport_mode": "fastest_available"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [coordinates]
+            }
+        }
+        
+        return jsonify({'isochrone': isochrone})
+        
+    except Exception as e:
+        logger.error(f"Error in get_isochrone: {e}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
