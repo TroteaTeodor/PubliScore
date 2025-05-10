@@ -63,6 +63,84 @@
         margin-right: 8px;
         opacity: 0.7;
     }
+    
+    /* Range slider styles */
+    input[type="range"] {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 8px;
+        border-radius: 4px;
+        background: #ddd;
+        outline: none;
+        margin: 10px 0;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #2196F3;
+        cursor: pointer;
+        transition: background .15s ease-in-out;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb:hover {
+        background: #1976D2;
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #2196F3;
+        cursor: pointer;
+        transition: background .15s ease-in-out;
+        border: none;
+    }
+    
+    input[type="range"]::-moz-range-thumb:hover {
+        background: #1976D2;
+    }
+    
+    #radiusValue {
+        font-weight: bold;
+        color: #2196F3;
+    }
+    
+    /* Editable value styles */
+    .editable-value {
+        font-weight: bold;
+        color: #2196F3;
+        width: 60px;
+        border: 1px solid #2196F3;
+        border-radius: 4px;
+        padding: 2px 6px;
+        text-align: center;
+        background-color: #fff;
+        transition: all 0.2s;
+    }
+    
+    .editable-value:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+    }
+    
+    .editable-value:hover {
+        background-color: rgba(33, 150, 243, 0.1);
+    }
+    
+    /* Hide number input spinners */
+    .editable-value::-webkit-inner-spin-button,
+    .editable-value::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    
+    .editable-value[type=number] {
+        -moz-appearance: textfield;
+    }
 </style>
 {% endblock %}
 
@@ -79,13 +157,10 @@
                             <input type="text" class="form-control" id="address" placeholder="Enter an address in Antwerp">
                         </div>
                         <div class="mb-3">
-                            <label for="radius" class="form-label">Search Radius</label>
-                            <select class="form-select" id="radius">
-                                <option value="0.5">500 meters</option>
-                                <option value="1.0" selected>1 kilometer</option>
-                                <option value="2.0">2 kilometers</option>
-                                <option value="3.0">3 kilometers</option>
-                            </select>
+                            <label for="radius" class="form-label">Search Radius: 
+                                <input type="number" id="radiusValue" class="form-control" style="width: 80px; display: inline-block;" value="1.0" min="0.5" max="3.0" step="0.1"> km
+                            </label>
+                            <input type="range" class="form-range" id="radius" min="0.5" max="3.0" step="0.1" value="1.0">
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Search</button>
                     </form>
@@ -150,6 +225,8 @@
     let marker;
     let circle;
     let transportMarkers = [];
+    let lastLocation = null;
+    let lastRadius = null;
     
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize map
@@ -186,8 +263,34 @@
             }
         });
         
-        // Handle radius change
-        document.getElementById('radius').addEventListener('change', function() {
+        // Handle radius slider and input
+        const radiusSlider = document.getElementById('radius');
+        const radiusValue = document.getElementById('radiusValue');
+        
+        // Update input when slider changes
+        radiusSlider.addEventListener('input', function() {
+            radiusValue.value = this.value;
+            if (marker) {
+                const latlng = marker.getLatLng();
+                updateLocation(latlng.lat, latlng.lng);
+            }
+        });
+        
+        // Update slider when input changes
+        radiusValue.addEventListener('change', function() {
+            let value = parseFloat(this.value);
+            
+            // Validate input
+            if (isNaN(value)) {
+                value = 1.0;
+            }
+            value = Math.max(0.5, Math.min(3.0, value));
+            value = Math.round(value * 10) / 10; // Round to 1 decimal place
+            
+            // Update both input and slider
+            this.value = value.toFixed(1);
+            radiusSlider.value = value;
+            
             if (marker) {
                 const latlng = marker.getLatLng();
                 updateLocation(latlng.lat, latlng.lng);
@@ -216,8 +319,15 @@
             }).addTo(map);
         }
         
-        // Calculate score
-        calculateScore(lat, lng);
+        // Check if location or radius has changed
+        const currentLocation = `${lat.toFixed(4)}_${lng.toFixed(4)}`;
+        const currentRadius = document.getElementById('radius').value;
+        
+        if (currentLocation !== lastLocation || currentRadius !== lastRadius) {
+            lastLocation = currentLocation;
+            lastRadius = currentRadius;
+            calculateScore(lat, lng);
+        }
     }
     
     function searchAddress(address) {

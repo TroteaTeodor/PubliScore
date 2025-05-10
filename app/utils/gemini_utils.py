@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 import os
 from dotenv import load_dotenv
+from functools import lru_cache
 
 # Load environment variables
 load_dotenv()
@@ -18,9 +19,17 @@ GEMINI_API_URL = os.getenv('GEMINI_API_URL')
 if not GEMINI_API_KEY or not GEMINI_API_URL:
     raise ValueError("Missing required environment variables. Please check your .env file.")
 
+# Cache for location descriptions
+location_cache = {}
+
+def get_cache_key(lat: float, lon: float, transport_details: dict) -> str:
+    """Generate a cache key for a location based on its coordinates and transport details."""
+    return f"{lat:.4f}_{lon:.4f}_{transport_details.get('bus_stops', 0)}_{transport_details.get('tram_stops', 0)}_{transport_details.get('velo_stations', 0)}"
+
 def generate_location_description(lat: float, lon: float, transport_details: dict) -> Optional[str]:
     """
     Generate a description of a location using the Gemini API based on its coordinates and transport details.
+    Uses caching to avoid unnecessary API calls for the same location.
     
     Args:
         lat (float): Latitude of the location
@@ -31,6 +40,14 @@ def generate_location_description(lat: float, lon: float, transport_details: dic
         Optional[str]: Generated description or None if the API call fails
     """
     try:
+        # Generate cache key
+        cache_key = get_cache_key(lat, lon, transport_details)
+        
+        # Check if we have a cached description
+        if cache_key in location_cache:
+            logger.debug("Using cached description for location")
+            return location_cache[cache_key]
+        
         # Construct the prompt
         prompt = f"""Generate a short, friendly description of this location in Antwerp based on its public transport accessibility:
         - Bus stops: {transport_details.get('bus_stops', 0)}
@@ -66,7 +83,10 @@ def generate_location_description(lat: float, lon: float, transport_details: dic
             
             if 'candidates' in result and len(result['candidates']) > 0:
                 if 'content' in result['candidates'][0] and 'parts' in result['candidates'][0]['content']:
-                    return result['candidates'][0]['content']['parts'][0]['text']
+                    description = result['candidates'][0]['content']['parts'][0]['text']
+                    # Cache the description
+                    location_cache[cache_key] = description
+                    return description
             
             logger.error("No content generated in Gemini API response")
             return None
