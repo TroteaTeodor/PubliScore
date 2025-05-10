@@ -2,13 +2,17 @@
 
 {% block title %}PubliScore - Home{% endblock %}
 
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/carbon-calculator.js') }}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-10">
         <div class="card mb-5">
             <div class="card-body text-center py-5">
                 <div class="home-image">
-                    <img src="../static/img/PubliScore.png">
+                    <img src="{{ url_for('static', filename='img/PubliScore.png') }}">
                 </div>
                 <p class="lead mb-4">
                     Discover the public transport accessibility score for any location in Antwerp.
@@ -62,6 +66,50 @@
             </div>
         </div>
         
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="card-title">Carbon Savings Calculator</h2>
+                <p class="mb-4">Calculate your potential carbon savings by using public transport instead of a car.</p>
+                
+                <form id="carbonCalculator" class="mb-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="distance" class="form-label">Daily Distance (km)</label>
+                            <input type="number" class="form-control" id="distance" min="0" step="0.1" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="days" class="form-label">Days per Week</label>
+                            <input type="number" class="form-control" id="days" min="1" max="7" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="carType" class="form-label">Car Type</label>
+                            <select class="form-select" id="carType" required>
+                                <option value="petrol">Petrol</option>
+                                <option value="diesel">Diesel</option>
+                                <option value="hybrid">Hybrid</option>
+                                <option value="electric">Electric</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="weeks" class="form-label">Number of Weeks</label>
+                            <input type="number" class="form-control" id="weeks" min="1" value="52" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Calculate Savings</button>
+                </form>
+
+                <div id="results" class="mt-4" style="display: none;">
+                    <h4>Your Carbon Savings</h4>
+                    <div class="alert alert-success">
+                        <p class="mb-2">Annual CO₂ Savings: <span id="co2Savings">0</span> kg</p>
+                        <p class="mb-0">Equivalent to planting <span id="treesEquivalent">0</span> trees</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-body">
                 <h2 class="card-title">About The Data</h2>

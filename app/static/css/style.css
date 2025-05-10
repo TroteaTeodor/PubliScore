@@ -216,3 +216,53 @@ h1.mb-4 {
 
 }
 }
+
+/* Carbon Calculator Styles */
+#carbonCalculator {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+#carbonCalculator .form-label {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+#carbonCalculator .form-control,
+#carbonCalculator .form-select {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 0.5rem;
+}
+
+#carbonCalculator .form-control:focus,
+#carbonCalculator .form-select:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+#results {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+
+#results h4 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+
+#results .alert {
+    margin-bottom: 0;
+}
+
+#results p {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+#results span {
+    font-weight: bold;
+    color: #27ae60;
+}
