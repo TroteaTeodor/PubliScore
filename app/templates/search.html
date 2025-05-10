@@ -157,6 +157,8 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
+
+        displayRoutes();
         
         // Add legend
         const legend = L.control({position: 'bottomright'});
@@ -264,7 +266,6 @@
                 }
                 updateScoreDisplay(data);
                 displayTransportNodes(data.transport_nodes);
-                displayRoutes();
             })
             .catch(error => {
                 console.error('Error:', error);
