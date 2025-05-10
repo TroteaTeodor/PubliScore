@@ -11,6 +11,49 @@
         width: 100%;
         border-radius: 5px;
     }
+    
+    .card {
+        margin-bottom: 20px;
+    }
+    
+    .recommendations-section {
+        margin-top: 20px;
+        margin-bottom: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .recommendations-content {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding-right: 10px;
+        max-height: 400px;
+    }
+    
+    /* Customize scrollbar */
+    .recommendations-content::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .recommendations-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    .recommendations-content::-webkit-scrollbar-thumb {
+        background: #2196F3;
+        border-radius: 4px;
+    }
+    
+    .recommendations-content::-webkit-scrollbar-thumb:hover {
+        background: #1976D2;
+    }
+    
     .progress-bar {
         transition: width 0.3s ease-in-out;
     }
@@ -230,15 +273,27 @@
     /* Add styles for the recommendations section */
     .recommendations-section {
         margin-top: 20px;
+        margin-bottom: 30px; /* Add space before footer */
         padding: 20px;
         background: #f8f9fa;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: auto;
+        display: flex;
+        flex-direction: column;
     }
     
     .recommendations-section h3 {
         color: #2196F3;
         margin-bottom: 15px;
+        flex-shrink: 0;
+    }
+    
+    .recommendations-content {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding-right: 10px;
+        max-height: 400px;
     }
     
     .recommendation-card {
@@ -250,6 +305,13 @@
         cursor: pointer;
         transition: all 0.3s ease;
         border-left: 4px solid #2196F3;
+        height: 180px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .recommendation-card:last-child {
+        margin-bottom: 0;
     }
     
     .recommendation-card:hover {
@@ -261,12 +323,18 @@
         color: #1976D2;
         margin-bottom: 10px;
         font-size: 1.1em;
+        flex-shrink: 0;
     }
     
     .recommendation-card p {
         color: #666;
         font-size: 0.9em;
         margin-bottom: 10px;
+        flex-grow: 1;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
     }
     
     .recommendation-card .score {
@@ -276,12 +344,22 @@
         padding: 4px 8px;
         background: rgba(33, 150, 243, 0.1);
         border-radius: 4px;
+        flex-shrink: 0;
     }
     
     .recommendation-card .address {
         color: #666;
         font-size: 0.9em;
         margin-top: 5px;
+        flex-shrink: 0;
+    }
+    
+    /* Add styles for the footer */
+    footer {
+        margin-top: 50px; /* Add space above footer */
+        padding: 20px 0;
+        background-color: #f8f9fa;
+        border-top: 1px solid #dee2e6;
     }
 </style>
 {% endblock %}
@@ -361,7 +439,7 @@
             <!-- Add recommendations section -->
             <div class="recommendations-section">
                 <h3>Recommended Locations</h3>
-                <div id="recommendationsContent">
+                <div class="recommendations-content" id="recommendationsContent">
                     <p class="text-muted">Loading recommendations...</p>
                 </div>
             </div>
