@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from app.utils.data_loader import load_osm_data
 from app.models.scoring import calculate_accessibility_score, find_transport_nodes
+from app.utils.gemini_utils import generate_location_description
 import os
 import pandas as pd
 import logging
@@ -96,42 +97,21 @@ def get_score():
         # Get nearby transport nodes for map display
         nearby_nodes = find_transport_nodes(osm_data, lat, lon, radius)
         
-        # Convert nearby nodes to list of dictionaries for the response
-        transport_nodes = []
-        if not nearby_nodes.empty:
-            for _, node in nearby_nodes.iterrows():
-                node_dict = {
-                    'id': int(node['id']),  # Convert numpy.int64 to Python int
-                    'lat': float(node['lat']),  # Convert numpy.float64 to Python float
-                    'lon': float(node['lon']),  # Convert numpy.float64 to Python float
-                    'transport_type': str(node['transport_type']),  # Convert to string
-                    'distance': float(node['distance'])  # Convert numpy.float64 to Python float
-                }
-                
-                # Add route information if available
-                if 'route_info' in node and node['route_info']:
-                    node_dict['route_info'] = node['route_info']
-                
-                transport_nodes.append(node_dict)
+        # Generate location description using Gemini API
+        location_description = generate_location_description(lat, lon, details)
         
-        # Convert score and details to Python native types
-        response = {
-            'score': float(score),  # Convert numpy.float64 to Python float
-            'details': {
-                'bus_stops': int(details['bus_stops']),  # Convert numpy.int64 to Python int
-                'tram_stops': int(details['tram_stops']),
-                'velo_stations': int(details['velo_stations']),
-                'closest_bus': float(details['closest_bus']) if details['closest_bus'] is not None else None,
-                'closest_tram': float(details['closest_tram']) if details['closest_tram'] is not None else None,
-                'closest_velo': float(details['closest_velo']) if details['closest_velo'] is not None else None
-            },
-            'transport_nodes': transport_nodes
+        # Prepare response
+        response_data = {
+            'score': score,
+            'details': details,
+            'transport_nodes': nearby_nodes.to_dict('records') if not nearby_nodes.empty else [],
+            'location_description': location_description
         }
         
-        return jsonify(response)
+        return jsonify(response_data)
         
     except Exception as e:
-        logger.error(f"Error processing request: {e}", exc_info=True)
+        logger.error(f"Error in get_score: {e}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
