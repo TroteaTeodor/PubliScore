@@ -114,6 +114,73 @@ def get_score():
         logger.error(f"Error in get_score: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/all_transport_nodes')
+def get_all_transport_nodes():
+    """API endpoint to get all transport nodes for the heatmap"""
+    try:
+        # Check if data is loaded
+        if osm_data is None or osm_data.empty:
+            logger.warning("OSM data not loaded, attempting to load")
+            if not load_data():
+                logger.error("Failed to load OSM data")
+                return jsonify({'error': 'Data not loaded yet'}), 503
+        
+        # Filter for relevant transport nodes
+        transport_nodes = osm_data[
+            (osm_data['transport_type'] == 'bus_stop') |
+            (osm_data['transport_type'] == 'tram_stop') |
+            (osm_data['transport_type'] == 'velo_station')
+        ]
+        
+        # Log the data types and sample data
+        logger.debug(f"Transport nodes data types:\n{transport_nodes.dtypes}")
+        logger.debug(f"Sample data:\n{transport_nodes.head()}")
+        
+        # Convert to list of dictionaries and ensure all values are JSON serializable
+        nodes_list = []
+        for _, row in transport_nodes.iterrows():
+            try:
+                # Ensure all values are properly converted
+                lat = float(row['lat'])
+                lon = float(row['lon'])
+                transport_type = str(row['transport_type'])
+                
+                # Validate the values
+                if not (0 <= lat <= 90 and -180 <= lon <= 180):
+                    logger.warning(f"Invalid coordinates: lat={lat}, lon={lon}")
+                    continue
+                    
+                if transport_type not in ['bus_stop', 'tram_stop', 'velo_station']:
+                    logger.warning(f"Invalid transport type: {transport_type}")
+                    continue
+                
+                node = {
+                    'lat': lat,
+                    'lon': lon,
+                    'transport_type': transport_type
+                }
+                nodes_list.append(node)
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Error processing row: {row}, Error: {e}")
+                continue
+        
+        logger.debug(f"Processed {len(nodes_list)} valid nodes")
+        
+        # Test JSON serialization
+        try:
+            import json
+            test_json = json.dumps({'transport_nodes': nodes_list})
+            logger.debug("JSON serialization successful")
+        except Exception as e:
+            logger.error(f"JSON serialization failed: {e}")
+            return jsonify({'error': 'Data serialization failed'}), 500
+        
+        return jsonify({'transport_nodes': nodes_list})
+        
+    except Exception as e:
+        logger.error(f"Error in get_all_transport_nodes: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Load data at startup
     if not load_data():

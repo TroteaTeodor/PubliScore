@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" />
 <style>
     #map {
         height: 600px;
@@ -141,6 +142,43 @@
     .editable-value[type=number] {
         -moz-appearance: textfield;
     }
+    
+    /* Heatmap controls */
+    .heatmap-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        width: 200px;
+        text-align: center;
+    }
+    
+    .heatmap-controls label {
+        margin-bottom: 5px;
+        display: block;
+        font-size: 12px;
+    }
+    
+    .heatmap-controls input[type="range"] {
+        width: 100%;
+        margin: 5px 0;
+    }
+    
+    .heatmap-controls .intensity-value {
+        font-size: 12px;
+        color: #666;
+        text-align: center;
+        margin-top: 5px;
+    }
+    
+    .heatmap-controls .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
 </style>
 {% endblock %}
 
@@ -205,6 +243,14 @@
             <div class="card">
                 <div class="card-body">
                     <div id="map"></div>
+                    <div class="heatmap-controls">
+                        <button id="toggleHeatmap" class="btn btn-primary">Show Heatmap</button>
+                        <div id="intensityControls" style="display: none;">
+                            <label for="heatmapIntensity">Heatmap Intensity</label>
+                            <input type="range" class="form-range" id="heatmapIntensity" min="1" max="50" value="25">
+                            <div class="intensity-value">25</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -220,6 +266,7 @@
 
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
     let map;
     let marker;
@@ -227,6 +274,9 @@
     let transportMarkers = [];
     let lastLocation = null;
     let lastRadius = null;
+    let heatmapLayer = null;
+    let isHeatmapVisible = false;
+    let currentHeatmapData = null;
     
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize map
@@ -244,6 +294,7 @@
                 <div><i style="background: #2196F3"></i> Bus Stop</div>
                 <div><i style="background: #9C27B0"></i> Tram Stop</div>
                 <div><i style="background: #FF9800"></i> Velo Station</div>
+                <div><i style="background: linear-gradient(to right, #ff0000, #ffff00, #00ff00)"></i> Transport Density</div>
             `;
             return div;
         };
@@ -502,6 +553,158 @@
             transportMarker.addTo(map);
             transportMarkers.push(transportMarker);
         });
+    }
+    
+    // Initialize heatmap toggle
+    const toggleHeatmap = document.getElementById('toggleHeatmap');
+    const intensityControls = document.getElementById('intensityControls');
+    const heatmapIntensity = document.getElementById('heatmapIntensity');
+    const intensityValue = document.querySelector('.intensity-value');
+    
+    // Update intensity value display
+    heatmapIntensity.addEventListener('input', function() {
+        intensityValue.textContent = this.value;
+        if (currentHeatmapData && isHeatmapVisible) {
+            updateHeatmap(currentHeatmapData);
+        }
+    });
+    
+    toggleHeatmap.addEventListener('click', function() {
+        isHeatmapVisible = !isHeatmapVisible;
+        this.textContent = isHeatmapVisible ? 'Hide Heatmap' : 'Show Heatmap';
+        intensityControls.style.display = isHeatmapVisible ? 'block' : 'none';
+        
+        if (isHeatmapVisible) {
+            // Show loading indicator
+            document.querySelector('.loading').classList.add('active');
+            
+            // Fetch all transport nodes
+            fetch('/api/all_transport_nodes')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text().then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            console.error('Raw response:', text);
+                            throw new Error(`JSON parse error: ${e.message}`);
+                        }
+                    });
+                })
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    if (!data.transport_nodes || !Array.isArray(data.transport_nodes)) {
+                        throw new Error('Invalid data format received from server');
+                    }
+                    console.log('Received nodes:', data.transport_nodes.length);
+                    currentHeatmapData = data.transport_nodes;
+                    updateHeatmap(currentHeatmapData);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading heatmap data: ' + error.message);
+                    // Reset toggle state if there was an error
+                    isHeatmapVisible = false;
+                    this.textContent = 'Show Heatmap';
+                    intensityControls.style.display = 'none';
+                })
+                .finally(() => {
+                    document.querySelector('.loading').classList.remove('active');
+                });
+        } else if (heatmapLayer) {
+            map.removeLayer(heatmapLayer);
+        }
+    });
+    
+    function updateHeatmap(transportNodes) {
+        try {
+            // Clear existing heatmap
+            if (heatmapLayer) {
+                map.removeLayer(heatmapLayer);
+            }
+            
+            console.log('Creating heatmap with nodes:', transportNodes.length);
+            
+            // Get current intensity value
+            const intensity = parseInt(heatmapIntensity.value);
+            
+            // Prepare heatmap data
+            const heatmapData = transportNodes.map(node => {
+                try {
+                    // Ensure coordinates are valid numbers
+                    const lat = parseFloat(node.lat);
+                    const lon = parseFloat(node.lon);
+                    
+                    if (isNaN(lat) || isNaN(lon)) {
+                        console.warn('Invalid coordinates:', node);
+                        return null;
+                    }
+                    
+                    // Validate coordinate ranges
+                    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                        console.warn('Coordinates out of range:', node);
+                        return null;
+                    }
+                    
+                    // Calculate intensity based on transport type and slider value
+                    let baseIntensity = 1;
+                    switch(node.transport_type) {
+                        case 'bus_stop':
+                            baseIntensity = 0.8;
+                            break;
+                        case 'tram_stop':
+                            baseIntensity = 1.2; // Trams are weighted more heavily
+                            break;
+                        case 'velo_station':
+                            baseIntensity = 0.6;
+                            break;
+                        default:
+                            console.warn('Unknown transport type:', node.transport_type);
+                            return null;
+                    }
+                    
+                    // Apply intensity multiplier from slider
+                    const adjustedIntensity = baseIntensity * (intensity / 25);
+                    
+                    return [lat, lon, adjustedIntensity];
+                } catch (e) {
+                    console.warn('Error processing node:', node, e);
+                    return null;
+                }
+            }).filter(point => point !== null); // Remove any invalid points
+            
+            console.log('Valid heatmap points:', heatmapData.length);
+            
+            if (heatmapData.length === 0) {
+                throw new Error('No valid transport nodes found');
+            }
+            
+            // Create new heatmap layer with adjusted radius based on intensity
+            heatmapLayer = L.heatLayer(heatmapData, {
+                radius: intensity, // Adjust radius based on intensity
+                blur: intensity * 0.6, // Adjust blur based on intensity
+                maxZoom: 10,
+                max: 1.0,
+                gradient: {
+                    0.4: 'blue',
+                    0.6: 'lime',
+                    0.8: 'yellow',
+                    1.0: 'red'
+                }
+            });
+            
+            // Add to map if heatmap is visible
+            if (isHeatmapVisible) {
+                map.addLayer(heatmapLayer);
+            }
+        } catch (error) {
+            console.error('Error creating heatmap:', error);
+            alert('Error creating heatmap: ' + error.message);
+        }
     }
 </script>
 {% endblock %} 
