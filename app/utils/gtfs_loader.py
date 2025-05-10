@@ -1,11 +1,11 @@
 import pandas as pd
+from pathlib import Path
 import requests
 import zipfile
 import io
 import logging
 from functools import lru_cache
 from flask import Flask, jsonify
-from geopy.distance import geodesic
 
 app = Flask(__name__, static_folder='static')
 
@@ -29,47 +29,66 @@ def download_gtfs_data():
         return None
 
 @lru_cache(maxsize=1)
-def load_gtfs_files():
-    """Load the GTFS files into memory"""
-    gtfs_zip = download_gtfs_data()
-    if not gtfs_zip:
-        return {}
-
-    try:
-        return {
-            'routes': pd.read_csv(gtfs_zip.open('routes.txt')).drop_duplicates(),
-            'stops': pd.read_csv(gtfs_zip.open('stops.txt')).drop_duplicates(),
-        }
-    except Exception as e:
-        logger.error(f"Error reading GTFS files: {e}")
-        return {}
-
 def load_gtfs_routes():
-    """Load and process GTFS routes and stops data."""
-    gtfs_data = load_gtfs_files()
-    if not gtfs_data:
-        return pd.DataFrame(), pd.DataFrame()
-
+    """Load and process GTFS routes data"""
+    
     try:
-        routes_df = gtfs_data['routes']
-        stops_df = gtfs_data['stops']
-
-        logger.info(f"Loaded {len(routes_df)} routes and {len(stops_df)} stops.")
-
-        # Filter and process routes and stops
+        gtfs_zip = download_gtfs_data()
+        if gtfs_zip is None:
+            return pd.DataFrame()
+        
+        logger.info("Loading GTFS files...")
+        
+        # Read GTFS files
+        routes_df = pd.read_csv(gtfs_zip.open('routes.txt'))
+        trips_df = pd.read_csv(gtfs_zip.open('trips.txt'))
+        stop_times_df = pd.read_csv(gtfs_zip.open('stop_times.txt'))
+        stops_df = pd.read_csv(gtfs_zip.open('stops.txt'))
+        
+        logger.info(f"Loaded {len(routes_df)} routes, {len(trips_df)} trips, {len(stops_df)} stops")
+        
+        # Join the data to get complete route information
+        route_info = pd.merge(
+            pd.merge(
+                routes_df,
+                trips_df,
+                on='route_id'
+            ),
+            pd.merge(
+                stop_times_df,
+                stops_df,
+                on='stop_id'
+            ),
+            on='trip_id'
+        )
+        
+        # Sort by trip_id and stop_sequence to maintain route order
+        route_info = route_info.sort_values(['trip_id', 'stop_sequence'])
+        
+        # Add route type mapping
         route_type_map = {
-            '0': 'tram', '1': 'metro', '2': 'rail', '3': 'bus', '4': 'ferry',
-            '5': 'cable_tram', '6': 'aerial_lift', '7': 'funicular',
-            '11': 'trolleybus', '12': 'monorail'
+            '0': 'tram',
+            '1': 'metro',
+            '2': 'rail',
+            '3': 'bus',
+            '4': 'ferry',
+            '5': 'cable_tram',
+            '6': 'aerial_lift',
+            '7': 'funicular',
+            '11': 'trolleybus',
+            '12': 'monorail'
         }
-        routes_df['route_type_name'] = routes_df['route_type'].astype(str).map(route_type_map)
-
-        logger.info(f"Processed {len(routes_df)} routes.")
-        return routes_df, stops_df
-
+        route_info['route_type_name'] = route_info['route_type'].astype(str).map(route_type_map)
+        
+        # Add route type for display
+        route_info['display_type'] = route_info['route_type_name'].apply(lambda x: 'tram' if x in ['tram', 'cable_tram'] else 'bus')
+        
+        logger.info(f"Processed {len(route_info)} route segments")
+        return route_info
+        
     except Exception as e:
-        logger.error(f"Error processing GTFS routes and stops: {e}")
-        return pd.DataFrame(), pd.DataFrame()
+        logger.error(f"Error loading GTFS data: {e}")
+        return pd.DataFrame()
 
 def get_route_info_for_stop(lat, lon, radius_km=0.1):
     """
@@ -84,33 +103,26 @@ def get_route_info_for_stop(lat, lon, radius_km=0.1):
         list: List of route information dictionaries
     """
     try:
-        routes_df, stops_df = load_gtfs_routes()
-        if routes_df.empty or stops_df.empty:
-            logger.debug("No routes or stops found.")
+        route_info = load_gtfs_routes()
+        if route_info.empty:
             return []
-
+        
         # Convert radius to degrees (approximate)
         radius_deg = radius_km / 111.0
-        logger.debug(f"Radius in degrees: {radius_deg}")
-
+        
         # Find stops within radius
-        nearby_stops = stops_df[
-            (stops_df['stop_lat'].between(lat - radius_deg, lat + radius_deg)) &
-            (stops_df['stop_lon'].between(lon - radius_deg, lon + radius_deg))
+        nearby_stops = route_info[
+            (route_info['stop_lat'].between(lat - radius_deg, lat + radius_deg)) &
+            (route_info['stop_lon'].between(lon - radius_deg, lon + radius_deg))
         ]
         
-        logger.debug(f"Found {len(nearby_stops)} nearby stops within radius.")
-
         if nearby_stops.empty:
-            logger.debug("No nearby stops found within the radius.")
             return []
         
         # Group by route to get unique routes
         routes = []
         for route_id, route_group in nearby_stops.groupby('route_id'):
             route = route_group.iloc[0]
-            logger.debug(f"Processing route {route_id} with {len(route_group)} stops.")
-
             routes.append({
                 'route_id': route_id,
                 'route_type': route['route_type_name'],
@@ -119,94 +131,56 @@ def get_route_info_for_stop(lat, lon, radius_km=0.1):
                 'stops': route_group[['stop_lat', 'stop_lon', 'stop_name', 'stop_sequence']].to_dict('records')
             })
         
-        logger.debug(f"Returning {len(routes)} routes for the given stop.")
         return routes
         
     except Exception as e:
         logger.error(f"Error getting route info for stop: {e}")
         return [] 
 
-def is_within_antwerp(lat, lon):
-    """Check if the coordinates are within the bounds of Antwerp."""
-    return 51.16 <= lat <= 51.31 and 4.3 <= lon <= 4.5
+def get_routes_with_shapes():
+    gtfs_zip = download_gtfs_data()
 
-def get_routes_with_shapes(lat=None, lon=None, radius_km=0.1):
-    """Get routes with shapes, optionally filtered by latitude and longitude."""
-    gtfs = load_gtfs_files()
-    if not gtfs:
-        logger.error("GTFS data could not be loaded")
+    if gtfs_zip is None:
+        logger.error("GTFS zip not downloaded")
         return []
 
     try:
-        logger.debug(f"Getting routes with shapes for lat={lat}, lon={lon}, radius={radius_km}km")
+        routes = pd.read_csv(gtfs_zip.open('routes.txt'))
+        trips = pd.read_csv(gtfs_zip.open('trips.txt'))
+        shapes = pd.read_csv(gtfs_zip.open('shapes.txt'))
+        logger.info(f"routes: {len(routes)}, trips: {len(trips)}, shapes: {len(shapes)}")
 
-        routes = gtfs['routes']
-        stops = gtfs['stops']
-        logger.info(f"Loaded {len(routes)} routes and {len(stops)} stops")
+        trip_routes = trips[['trip_id', 'route_id', 'shape_id']].dropna().drop_duplicates()
+        trip_routes = trip_routes.merge(routes[['route_id', 'route_short_name', 'route_long_name', 'route_type']], on='route_id')
 
-        # Filter to only include Antwerp routes (if needed)
-        routes = routes[routes['route_id'].apply(lambda route_id: is_within_antwerp_route(route_id, lat, lon, radius_km))]
-
-        logger.debug(f"After filtering for Antwerp routes, found {len(routes)} routes.")
+        shapes = shapes.sort_values(['shape_id', 'shape_pt_sequence'])
+        shapes_grouped = shapes.groupby('shape_id')
 
         results = []
+        seen = set()
 
-        for route_id, route in routes.iterrows():
-            # Collect the route information and stops
-            route_info = {
-                'route_id': route['route_id'],
-                'route_type': route['route_type_name'],
-                'route_short_name': route['route_short_name'],
-                'route_long_name': route['route_long_name'],
-                'stops': stops[stops['route_id'] == route['route_id']][['stop_lat', 'stop_lon', 'stop_name']].to_dict('records')
-            }
-            results.append(route_info)
+        for shape_id, group in shapes_grouped:
+            match = trip_routes[trip_routes['shape_id'] == shape_id]
+            if match.empty:
+                continue
 
-        logger.info(f"Found {len(results)} routes")
+            route_short = match.iloc[0]['route_short_name']
+            if (route_short, shape_id) in seen:
+                continue
+            seen.add((route_short, shape_id))
+
+            coords = list(zip(group['shape_pt_lat'], group['shape_pt_lon']))
+            results.append({
+                'route_short_name': str(route_short),
+                'route_long_name': str(match.iloc[0]['route_long_name']),
+                'route_type': int(match.iloc[0]['route_type']),  # Cast to native int
+                'shape_id': str(shape_id),
+                'coordinates': [(float(lat), float(lon)) for lat, lon in coords]  # Ensure floats
+            })
+
+        logger.info(f"Found {len(results)} route shapes")
         return results
 
     except Exception as e:
         logger.error(f"Error in get_routes_with_shapes: {e}")
-        return []
-
-def is_within_radius(lat1, lon1, lat2, lon2, radius_km):
-    """Check if the coordinates (lat2, lon2) are within a given radius (in km) of the coordinates (lat1, lon1)."""
-    return geodesic((lat1, lon1), (lat2, lon2)).km <= radius_km
-
-def is_within_antwerp_route(route_id, lat, lon, radius_km):
-    """Check if a route has stops within Antwerp and the radius."""
-    stops = get_stops_for_route(route_id)
-    for stop in stops:
-        stop_lat, stop_lon = stop['lat'], stop['lon']
-        if is_within_antwerp(stop_lat, stop_lon) and is_within_radius(lat, lon, stop_lat, stop_lon, radius_km):
-            return True
-    return False
-
-def get_stops_for_route(route_id):
-    """Get all stops for a given route_id from globally cached GTFS data."""
-    gtfs_data = load_gtfs_files()
-    if not gtfs_data:
-        logger.error("GTFS data could not be loaded.")
-        return []
-
-    try:
-        stop_times_df = gtfs_data['stop_times']
-        stops_df = gtfs_data['stops']
-        trips_df = gtfs_data.get('trips', pd.DataFrame())
-
-        # Find all trips for this route if trips data is available
-        if not trips_df.empty:
-            trip_ids = trips_df[trips_df['route_id'] == route_id]['trip_id'].unique()
-            stop_times = stop_times_df[stop_times_df['trip_id'].isin(trip_ids)]
-            stop_ids = stop_times['stop_id'].unique()
-        else:
-            stop_ids = stop_times_df[stop_times_df['route_id'] == route_id]['stop_id'].unique()
-
-        # Get stop info
-        stops = stops_df[stops_df['stop_id'].isin(stop_ids)]
-
-        return stops[['stop_lat', 'stop_lon']].rename(columns={'stop_lat': 'lat', 'stop_lon': 'lon'}).to_dict('records')
-
-    except Exception as e:
-        logger.error(f"Error in get_stops_for_route({route_id}): {e}")
         return []
