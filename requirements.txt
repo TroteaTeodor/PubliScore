@@ -1,10 +1,7 @@
-flask==2.2.3
-pandas==1.5.3
-numpy==1.24.2
-datasets==2.13.0
-requests==2.28.2
-geopy==2.3.0
-google-generativeai==0.3.1
-shapely==2.0.1
-gtfs-realtime-bindings==1.0.0
-python-dotenv==1.0.0 
+Flask==3.0.2
+pandas==2.2.1
+requests==2.31.0
+python-dotenv==1.0.1
+geopy==2.4.1
+gunicorn==21.2.0
+Werkzeug==3.0.1 

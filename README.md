@@ -1,6 +1,84 @@
 # PubliScore
 
-A sophisticated web application for evaluating and visualizing public transport accessibility in Antwerp. PubliScore helps users make informed decisions about locations based on their public transport connectivity.
+PubliScore is a web application that helps users evaluate the public transport accessibility of locations in Antwerp.
+
+## Features
+
+- Interactive map interface
+- Real-time public transport accessibility scoring
+- Location recommendations
+- Transport node visualization
+- Heatmap of transport density
+
+## Local Development
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/PubliScore.git
+cd PubliScore
+```
+
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Create a `.env` file with your Gemini API key:
+```
+GEMINI_API_KEY="your-api-key-here"
+GEMINI_API_URL="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+```
+
+5. Run the application:
+```bash
+python app.py
+```
+
+The application will be available at `http://localhost:5000`
+
+## Deployment
+
+### Deploying to Render
+
+1. Create a Render account at https://render.com
+
+2. Create a new Web Service:
+   - Connect your GitHub repository
+   - Select "Python" as the runtime
+   - Render will automatically detect the `render.yaml` configuration
+
+3. Add your environment variables in the Render dashboard:
+   - `GEMINI_API_KEY`: Your Gemini API key
+   - `GEMINI_API_URL`: The Gemini API URL
+
+4. Deploy!
+
+Your application will be available at `https://publiscore.onrender.com` (or a similar URL)
+
+### Alternative Deployment Options
+
+- **Heroku**: Use the Procfile for Heroku deployment
+- **DigitalOcean**: Deploy to a DigitalOcean App Platform
+- **AWS**: Deploy to AWS Elastic Beanstalk
+- **Google Cloud**: Deploy to Google Cloud Run
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Overview
 
@@ -69,79 +147,6 @@ The system provides detailed scoring and insights to help residents, urban plann
 - Transport node filtering
 - Distance calculations
 - Score normalization
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/PubliScore.git
-cd PubliScore
-```
-
-2. Create and activate virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Set up environment:
-```bash
-export FLASK_APP=app.py
-export FLASK_ENV=development
-```
-
-## Usage
-
-### Starting the Application
-
-1. Activate virtual environment:
-```bash
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-2. Run Flask:
-```bash
-flask run
-```
-Or Run python:
-```bash
-python app.py
-```
-
-3. Open in browser:
-```
-http://localhost:5000
-```
-
-### Using the Application
-
-1. **Search Locations**
-   - Enter address or click on map
-   - Adjust search radius with slider
-   - View immediate accessibility score
-
-2. **View Scores**
-   - Check accessibility score (0-10)
-   - View transport details
-   - Read location description
-   - Analyze transport options
-
-3. **Travel Time Analysis**
-   - Toggle "Show reachable areas"
-   - Adjust time limit (5-60 minutes)
-   - View coverage areas for different transport modes
-   - Compare transport options
-
-4. **Transport Options**
-   - Toggle heatmap
-   - Click nodes for details
-   - View recommendations
-   - Analyze transport density
 
 ## Project Structure
 

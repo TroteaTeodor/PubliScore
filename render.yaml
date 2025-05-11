@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: publiscore
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_API_URL
+        value: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
+      - key: PYTHON_VERSION
+        value: 3.12.0 
